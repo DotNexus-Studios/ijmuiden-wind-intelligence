@@ -7,7 +7,7 @@ import {
   CartesianGrid,
   ComposedChart,
   Line,
-  LineChart,
+  ReferenceArea,
   ReferenceLine,
   ResponsiveContainer,
   Tooltip,
@@ -20,11 +20,28 @@ import { DirectionArrow, StatusBadge } from "@/components/dashboard/wind-display
 import { msToKnots } from "@/lib/units/wind";
 import { UI, formatObservationClock, formatTimelineLabel } from "@/lib/i18n/nl";
 import type { DashboardData } from "@/lib/dashboard";
-import { assessSafety } from "@/lib/watersport/safety";
+import {
+  assessForecastPointForSport,
+  getSportWindGoRange,
+  isGoStatus,
+  toDisplayStatus,
+  type SportId,
+} from "@/lib/watersport/sports";
 
 const HOUR_SLICES: Record<string, number> = { "12H": 12, "24H": 24, "3D": 72, "5D": 120 };
 
-export function ForecastOverviewCard({ data }: { data: DashboardData }) {
+function goDotColor(isGo: boolean, isWait: boolean): string {
+  if (isGo) return "#16a34a";
+  if (isWait) return "#d97706";
+  return "#94a3b8";
+}
+
+interface ChartSportProps {
+  data: DashboardData;
+  sport: SportId;
+}
+
+export function ForecastOverviewCard({ data, sport }: ChartSportProps) {
   const items = useMemo(() => {
     const timeline = data.forecast.timeline;
     const tomorrow = data.forecast.points.find((p) => {
@@ -32,101 +49,160 @@ export function ForecastOverviewCard({ data }: { data: DashboardData }) {
       const now = new Date();
       return d.getDate() !== now.getDate() && d.getHours() >= 10 && d.getHours() <= 14;
     });
-    const mapped = timeline.map((point) => ({
-      ...point,
-      displayLabel: formatTimelineLabel(point.label),
-      status: assessSafety({
-        windSpeedMs: point.speedMs,
-        gustMs: point.gustMs,
-        directionDeg: point.directionDeg,
-        trend: "stable",
-        confidence: point.confidence,
-      }).status,
-    }));
+    const mapped = timeline.map((point) => {
+      const status = assessForecastPointForSport(sport, point, data.surf.timeline);
+      return {
+        ...point,
+        displayLabel: formatTimelineLabel(point.label),
+        status,
+        displayStatus: toDisplayStatus(status),
+      };
+    });
     if (tomorrow && !mapped.some((m) => m.displayLabel === UI.tomorrow)) {
+      const status = assessForecastPointForSport(sport, tomorrow, data.surf.timeline);
       mapped.push({
         ...tomorrow,
         label: UI.tomorrow,
         displayLabel: UI.tomorrow.toUpperCase(),
-        status: assessSafety({
-          windSpeedMs: tomorrow.speedMs,
-          gustMs: tomorrow.gustMs,
-          directionDeg: tomorrow.directionDeg,
-          trend: "stable",
-          confidence: tomorrow.confidence,
-        }).status,
+        status,
+        displayStatus: toDisplayStatus(status),
       });
     }
     return mapped;
-  }, [data.forecast]);
+  }, [data.forecast, data.surf.timeline, sport]);
 
   return (
     <section className="dashboard-card p-5 sm:p-6 h-full min-w-0 max-w-full overflow-hidden">
       <SectionHeader
         title={UI.forecastOverview}
         action={
-          <Link href="#modellen" className="text-xs font-semibold text-primary hover:underline shrink-0">
+          <Link href="/intelligence#modellen" className="text-xs font-semibold text-primary hover:underline shrink-0">
             {UI.moreDetail}
           </Link>
         }
       />
       <div className="w-full min-w-0 overflow-x-auto overscroll-x-contain">
         <div className="flex gap-2 w-max max-w-none pb-1">
-          {items.map((point) => (
-            <div
-              key={`${point.displayLabel}-${point.time}`}
-              className="w-[88px] shrink-0 rounded-xl border border-slate-100 bg-slate-50/80 p-3 text-center"
-            >
-              <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">
-                {point.displayLabel}
-              </p>
-              <p className="text-2xl font-bold tabular-nums text-slate-900 mt-1">
-                {Math.round(msToKnots(point.speedMs))}
-              </p>
-              <p className="text-[10px] text-slate-500">kt</p>
-              <p className="text-[10px] text-slate-500 mt-1">
-                Gust {Math.round(msToKnots(point.gustMs))}
-              </p>
-              <div className="flex justify-center my-1">
-                <DirectionArrow degrees={point.directionDeg} />
+          {items.map((point) => {
+            const go = isGoStatus(point.status);
+            return (
+              <div
+                key={`${point.displayLabel}-${point.time}`}
+                className={`w-[88px] shrink-0 rounded-xl border p-3 text-center ${
+                  go ? "border-emerald-200 bg-emerald-50/80" : "border-slate-100 bg-slate-50/80"
+                }`}
+              >
+                <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">
+                  {point.displayLabel}
+                </p>
+                <p className="text-2xl font-bold tabular-nums text-slate-900 mt-1">
+                  {sport === "surf"
+                    ? Math.round(
+                        (data.surf.timeline.find(
+                          (t) =>
+                            Math.abs(new Date(t.time).getTime() - new Date(point.time).getTime()) <
+                            3_600_000
+                        )?.waveHeightM ?? 0) * 100
+                      )
+                    : Math.round(msToKnots(point.speedMs))}
+                </p>
+                <p className="text-[10px] text-slate-500">{sport === "surf" ? "cm" : "kt"}</p>
+                {sport !== "surf" && (
+                  <p className="text-[10px] text-slate-500 mt-1">
+                    Gust {Math.round(msToKnots(point.gustMs))}
+                  </p>
+                )}
+                <div className="flex justify-center my-1">
+                  <DirectionArrow degrees={point.directionDeg} />
+                </div>
+                <p className="text-[10px] text-slate-400">{Math.round(point.confidence)}%</p>
+                <div className="mt-2 flex justify-center">
+                  <StatusBadge status={point.displayStatus} size="sm" />
+                </div>
               </div>
-              <p className="text-[10px] text-slate-400">{Math.round(point.confidence)}%</p>
-              <div className="mt-2 flex justify-center">
-                <StatusBadge status={point.status} size="sm" />
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </div>
     </section>
   );
 }
 
-export function WindGustsChart({ data }: { data: DashboardData }) {
+export function WindGustsChart({ data, sport }: ChartSportProps) {
   const [range, setRange] = useState("12H");
   const hours = HOUR_SLICES[range] ?? 12;
+  const goRange = getSportWindGoRange(sport);
 
-  const chartData = data.forecast.points.slice(0, hours).map((p, i) => ({
-    time: new Date(p.time).toLocaleTimeString("nl-NL", { hour: "2-digit", minute: "2-digit" }),
-    wind: Math.round(msToKnots(p.speedMs)),
-    gust: Math.round(msToKnots(p.gustMs)),
-    isNow: i === 0,
-  }));
+  const chartData = data.forecast.points.slice(0, hours).map((p, i) => {
+    const status = assessForecastPointForSport(sport, p, data.surf.timeline);
+    const wind = Math.round(msToKnots(p.speedMs));
+    const gust = Math.round(msToKnots(p.gustMs));
+    return {
+      time: new Date(p.time).toLocaleTimeString("nl-NL", { hour: "2-digit", minute: "2-digit" }),
+      wind,
+      gust,
+      isNow: i === 0,
+      isGo: isGoStatus(status),
+      isWait: status === "WAIT" || status === "FLAT",
+    };
+  });
 
   return (
     <section className="dashboard-card p-5 sm:p-6 min-w-0 max-w-full overflow-hidden">
-      <SectionHeader title={UI.windGusts} action={<TimeRangeToggle options={["12H", "24H", "3D"]} value={range} onChange={setRange} />} />
+      <SectionHeader
+        title={UI.windGusts}
+        action={<TimeRangeToggle options={["12H", "24H", "3D"]} value={range} onChange={setRange} />}
+      />
       <div className="h-52 w-full min-w-0">
         <ResponsiveContainer width="100%" height="100%">
           <ComposedChart data={chartData} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
+            {sport !== "surf" && (
+              <ReferenceArea
+                y1={goRange.minKn}
+                y2={goRange.maxKn}
+                fill="#dcfce7"
+                fillOpacity={0.55}
+                label={{
+                  value: UI.goZone,
+                  position: "insideTopLeft",
+                  fill: "#16a34a",
+                  fontSize: 10,
+                }}
+              />
+            )}
             <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
             <XAxis dataKey="time" tick={{ fontSize: 10, fill: "#94a3b8" }} interval="preserveStartEnd" />
             <YAxis tick={{ fontSize: 10, fill: "#94a3b8" }} unit=" kt" width={34} />
             <Tooltip contentStyle={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 8, fontSize: 12 }} />
             <Area type="monotone" dataKey="gust" fill="#dbeafe" stroke="#93c5fd" strokeWidth={1} name="Vlagen" />
-            <Line type="monotone" dataKey="wind" stroke="#2563eb" strokeWidth={2.5} dot={false} name="Wind" />
+            <Line
+              type="monotone"
+              dataKey="wind"
+              stroke="#2563eb"
+              strokeWidth={2.5}
+              dot={(props) => {
+                const { cx, cy, payload } = props;
+                if (cx == null || cy == null) return null;
+                return (
+                  <circle
+                    cx={cx}
+                    cy={cy}
+                    r={4}
+                    fill={goDotColor(payload.isGo, payload.isWait)}
+                    stroke="#fff"
+                    strokeWidth={1}
+                  />
+                );
+              }}
+              name="Wind"
+            />
             {chartData[0] && (
-              <ReferenceLine x={chartData[0].time} stroke="#94a3b8" strokeDasharray="4 4" label={{ value: "NU", position: "top", fill: "#64748b", fontSize: 10 }} />
+              <ReferenceLine
+                x={chartData[0].time}
+                stroke="#94a3b8"
+                strokeDasharray="4 4"
+                label={{ value: "NU", position: "top", fill: "#64748b", fontSize: 10 }}
+              />
             )}
           </ComposedChart>
         </ResponsiveContainer>
@@ -135,28 +211,90 @@ export function WindGustsChart({ data }: { data: DashboardData }) {
   );
 }
 
-export function ForecastFusedChart({ data }: { data: DashboardData }) {
+export function ForecastFusedChart({ data, sport }: ChartSportProps) {
   const [range, setRange] = useState("24H");
   const hours = HOUR_SLICES[range] ?? 24;
+  const goRange = getSportWindGoRange(sport);
 
-  const chartData = data.forecast.points.slice(0, hours).map((p) => ({
+  const surfChartData = data.surf.timeline.slice(0, hours).map((p) => ({
     time: new Date(p.time).toLocaleDateString("nl-NL", { weekday: "short", hour: "2-digit" }),
-    wind: Math.round(msToKnots(p.speedMs)),
-    gust: Math.round(msToKnots(p.gustMs)),
+    wave: Math.round(p.waveHeightM * 100),
+    isGo: p.status === "GO",
+    isWait: p.status === "WAIT" || p.status === "FLAT",
   }));
+
+  const windChartData = data.forecast.points.slice(0, hours).map((p) => {
+    const status = assessForecastPointForSport(sport, p, data.surf.timeline);
+    return {
+      time: new Date(p.time).toLocaleDateString("nl-NL", { weekday: "short", hour: "2-digit" }),
+      wind: Math.round(msToKnots(p.speedMs)),
+      gust: Math.round(msToKnots(p.gustMs)),
+      isGo: isGoStatus(status),
+      isWait: status === "WAIT" || status === "FLAT",
+    };
+  });
+
+  const chartData = sport === "surf" ? surfChartData : windChartData;
 
   return (
     <section className="dashboard-card p-5 sm:p-6 min-w-0 max-w-full overflow-hidden">
-      <SectionHeader title={UI.forecastFused} action={<TimeRangeToggle options={["24H", "3D", "5D"]} value={range} onChange={setRange} />} />
+      <SectionHeader
+        title={sport === "surf" ? UI.surfForecast48h : UI.forecastFused}
+        action={<TimeRangeToggle options={["24H", "3D", "5D"]} value={range} onChange={setRange} />}
+      />
       <div className="h-52 w-full min-w-0">
         <ResponsiveContainer width="100%" height="100%">
-          <ComposedChart data={chartData} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
+          <ComposedChart
+            data={chartData as Array<Record<string, unknown>>}
+            margin={{ top: 8, right: 8, left: 0, bottom: 0 }}
+          >
+            {sport === "surf" ? (
+              <ReferenceArea y1={70} y2={250} fill="#dcfce7" fillOpacity={0.5} label={{ value: UI.goZone, position: "insideTopLeft", fill: "#16a34a", fontSize: 10 }} />
+            ) : (
+              <ReferenceArea y1={goRange.minKn} y2={goRange.maxKn} fill="#dcfce7" fillOpacity={0.55} label={{ value: UI.goZone, position: "insideTopLeft", fill: "#16a34a", fontSize: 10 }} />
+            )}
             <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
             <XAxis dataKey="time" tick={{ fontSize: 10, fill: "#94a3b8" }} interval="preserveStartEnd" />
-            <YAxis tick={{ fontSize: 10, fill: "#94a3b8" }} unit=" kt" width={34} />
+            <YAxis
+              tick={{ fontSize: 10, fill: "#94a3b8" }}
+              unit={sport === "surf" ? " cm" : " kt"}
+              width={38}
+            />
             <Tooltip contentStyle={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 8, fontSize: 12 }} />
-            <Area type="monotone" dataKey="gust" fill="#e0e7ff" stroke="none" name="Vlagen" />
-            <Line type="monotone" dataKey="wind" stroke="#2563eb" strokeWidth={2.5} dot={false} name="Wind" />
+            {sport === "surf" ? (
+              <Area type="monotone" dataKey="wave" fill="#e0e7ff" stroke="#6366f1" strokeWidth={2} name="Golf (cm)" dot={(props) => {
+                const { cx, cy, payload } = props;
+                if (cx == null || cy == null) return null;
+                return (
+                  <circle cx={cx} cy={cy} r={3} fill={goDotColor(payload.isGo, payload.isWait)} stroke="#fff" strokeWidth={1} />
+                );
+              }} />
+            ) : (
+              <>
+                <Area type="monotone" dataKey="gust" fill="#e0e7ff" stroke="none" name="Vlagen" />
+                <Line
+                  type="monotone"
+                  dataKey="wind"
+                  stroke="#2563eb"
+                  strokeWidth={2.5}
+                  dot={(props) => {
+                    const { cx, cy, payload } = props;
+                    if (cx == null || cy == null) return null;
+                    return (
+                      <circle
+                        cx={cx}
+                        cy={cy}
+                        r={3}
+                        fill={goDotColor(payload.isGo, payload.isWait)}
+                        stroke="#fff"
+                        strokeWidth={1}
+                      />
+                    );
+                  }}
+                  name="Wind"
+                />
+              </>
+            )}
           </ComposedChart>
         </ResponsiveContainer>
       </div>
@@ -168,12 +306,15 @@ export function ModelComparisonTable({ data }: { data: DashboardData }) {
   const { models, points, timeline } = data.forecast;
   const now = points[0];
   const fusedNow = timeline[0];
-  const liveKt = data.live.formatted.knots;
+  const fusedKt = data.live.formatted.knots;
 
   const rows = models.map((m) => {
     const pt = m.points.find((p) => p.time === now?.time) ?? m.points[0];
     const speedKt = Math.round(msToKnots(pt.speedMs));
-    const error = liveKt > 0 ? speedKt - liveKt : m.errorTracking?.h6 ?? 0;
+    const error =
+      fusedKt > 0
+        ? Math.round((speedKt - fusedKt) * 10) / 10
+        : m.errorTracking?.h6 ?? 0;
     const weight = fusedNow?.weights[m.model] ?? 0;
     return {
       id: m.model,
@@ -197,42 +338,50 @@ export function ModelComparisonTable({ data }: { data: DashboardData }) {
           </span>
         }
       />
+      <p className="text-xs text-slate-500 -mt-2 mb-3">
+        {UI.modelErrorHint} ({fusedKt} kn ±{data.live.margin.marginKt} kt)
+      </p>
       <div className="w-full min-w-0 overflow-x-auto overscroll-x-contain">
-        <table className="w-full text-sm min-w-[480px]">
+        <table className="w-full text-sm min-w-[520px]">
           <thead>
             <tr className="text-left text-[10px] uppercase tracking-wide text-slate-400 border-b border-slate-100">
-              <th className="pb-2 font-semibold">Model</th>
-              <th className="pb-2 font-semibold">Wind (kt)</th>
-              <th className="pb-2 font-semibold">Vlagen (kt)</th>
-              <th className="pb-2 font-semibold">Richt.</th>
-              <th className="pb-2 font-semibold">Fout vs RWS</th>
-              <th className="pb-2 font-semibold">Gewicht</th>
+              <th className="pb-2 font-semibold pr-2">Model</th>
+              <th className="pb-2 font-semibold pr-2">Wind (kt)</th>
+              <th className="pb-2 font-semibold pr-2">Vlagen (kt)</th>
+              <th className="pb-2 font-semibold pr-2">Richt.</th>
+              <th className="pb-2 font-semibold pr-2">{UI.errorVsFused}</th>
+              <th className="pb-2 font-semibold pr-2">Gewicht</th>
               <th className="pb-2 font-semibold">Conf.</th>
             </tr>
           </thead>
           <tbody>
             {rows.map((row) => (
               <tr key={row.id} className="border-b border-slate-50 text-slate-700">
-                <td className="py-2.5 font-semibold text-slate-800">{row.name}</td>
-                <td className="py-2.5 tabular-nums">{row.speedKt}</td>
-                <td className="py-2.5 tabular-nums">{row.gustKt}</td>
-                <td className="py-2.5">
+                <td className="py-2.5 font-semibold text-slate-800 pr-2">{row.name}</td>
+                <td className="py-2.5 tabular-nums pr-2">{row.speedKt}</td>
+                <td className="py-2.5 tabular-nums pr-2">{row.gustKt}</td>
+                <td className="py-2.5 pr-2">
                   <DirectionArrow degrees={row.direction} />
                 </td>
-                <td className={`py-2.5 tabular-nums ${Number(row.error) > 0 ? "text-amber-600" : "text-emerald-600"}`}>
-                  {Number(row.error) > 0 ? "+" : ""}{row.error}
+                <td
+                  className={`py-2.5 tabular-nums pr-2 ${Number(row.error) > 0 ? "text-amber-600" : "text-emerald-600"}`}
+                >
+                  {Number(row.error) > 0 ? "+" : ""}
+                  {row.error}
                 </td>
-                <td className="py-2.5 tabular-nums">{row.weight}%</td>
+                <td className="py-2.5 tabular-nums pr-2">{row.weight}%</td>
                 <td className="py-2.5 tabular-nums">{row.conf}%</td>
               </tr>
             ))}
             {now && (
               <tr className="bg-blue-50/70 font-bold text-slate-900">
-                <td className="py-2.5">{UI.fusedForecast}</td>
+                <td className="py-2.5 pr-2">{UI.fusedForecast}</td>
                 <td className="py-2.5">{Math.round(msToKnots(now.speedMs))}</td>
                 <td className="py-2.5">{Math.round(msToKnots(now.gustMs))}</td>
-                <td className="py-2.5"><DirectionArrow degrees={Math.round(now.directionDeg)} /></td>
-                <td className="py-2.5">-</td>
+                <td className="py-2.5">
+                  <DirectionArrow degrees={Math.round(now.directionDeg)} />
+                </td>
+                <td className="py-2.5">±{data.live.margin.marginKt}</td>
                 <td className="py-2.5">100%</td>
                 <td className="py-2.5">{Math.round(fusedNow?.confidence ?? 0)}%</td>
               </tr>
@@ -244,6 +393,5 @@ export function ModelComparisonTable({ data }: { data: DashboardData }) {
   );
 }
 
-/** Legacy exports */
 export const ForecastTimeline = ForecastOverviewCard;
 export const ModelComparisonChart = ModelComparisonTable;

@@ -117,6 +117,21 @@ export const UI = {
   weight: "Gewicht",
   health: "Gezondheid",
   status: "Status",
+  wing: "Wing",
+  margin: "Foutmarge",
+  goZone: "GA-zone",
+  errorVsFused: "Fout vs fusie",
+  modelErrorHint: "Afwijking t.o.v. gecombineerde live wind",
+  dataIntelligence: "Data Intelligence",
+  dataIntelligenceIntro:
+    "Volledig overzicht van sensoren, modellen, fusie en debug-data voor IJmuiderstrand.",
+  menuOpen: "Menu openen",
+  menuClose: "Menu sluiten",
+  menuTitle: "Navigatie",
+  menuDashboardHint: "Sportdashboard met directe beslissing",
+  menuIntelligenceHint: "Sensoren, modellen, tabellen en debug",
+  menuFooter: "IJmuiden Wind Intelligence · IJmuiderstrand",
+  backToDashboard: "Terug naar dashboard",
 } as const;
 
 export function formatTimelineLabel(label: string): string {

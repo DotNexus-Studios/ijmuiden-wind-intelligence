@@ -112,6 +112,14 @@
   @apply bg-card border border-border/80 shadow-sm rounded-2xl min-w-0 max-w-full;
 }
 
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
 .status-go-text { color: var(--status-go); }
 .status-wait-text { color: var(--status-wait); }
 .status-nogo-text { color: var(--status-nogo); }

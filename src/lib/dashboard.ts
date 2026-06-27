@@ -1,7 +1,7 @@
 import { TARGET_LOCATION } from "@/lib/config/location";
 import { computeConfidence } from "@/lib/forecast/confidence";
 import { attachObservationHistory, fuseForecasts } from "@/lib/forecast/fusion";
-import { fetchFusedRealtimeWind } from "@/lib/fusion/service";
+import { computeLiveWindMargin, type LiveWindMargin } from "@/lib/fusion/live-margin";
 import type { FusedContributor, FusedRealtimeWind } from "@/lib/fusion/types";
 import { fetchMarineForecast, type MarinePoint } from "@/lib/marine/open-meteo-marine";
 import { freshnessLevel } from "@/lib/rws/client";
@@ -14,6 +14,8 @@ import { computeTrend, formatWindSpeed, type WindTrend } from "@/lib/units/wind"
 import { fetchAllModels } from "@/lib/weather-models/open-meteo-base";
 import type { FusedForecastPoint, ModelForecast } from "@/lib/weather-models/types";
 import { recommendKiteSize, type RiderWeight } from "@/lib/watersport/kite-size";
+import { recommendWingSize } from "@/lib/watersport/wingfoil";
+import { fetchFusedRealtimeWind } from "@/lib/fusion/service";
 import { assessSafety, type GoStatus, type SafetyAssessment } from "@/lib/watersport/safety";
 import { buildSurfAssessment, type SurfAssessment } from "@/lib/watersport/surf";
 import type { SourceCheckResult } from "@/lib/sources";
@@ -40,6 +42,7 @@ export interface DashboardData {
     fusionConfidence: number | null;
     fusionConfidenceLabel: string | null;
     fusionWarnings: string[];
+    margin: LiveWindMargin;
   };
   decision: {
     status: GoStatus;
@@ -55,6 +58,7 @@ export interface DashboardData {
     disagreementScore: number;
   };
   kite: ReturnType<typeof recommendKiteSize>;
+  wing: ReturnType<typeof recommendWingSize>;
   safety: SafetyAssessment;
   surf: SurfAssessment;
   stations: StationReading[];
@@ -148,6 +152,8 @@ function buildDashboardPayload(
   });
 
   const kite = recommendKiteSize(speedMs, riderWeight);
+  const wing = recommendWingSize(speedMs, riderWeight);
+  const liveMargin = computeLiveWindMargin(realtimeFusion, speedMs);
   const surf = buildSurfAssessment(
     marinePoints,
     forecastFusion.points.map((p) => ({
@@ -181,6 +187,7 @@ function buildDashboardPayload(
       fusionConfidence: realtimeFusion?.confidence ?? null,
       fusionConfidenceLabel: realtimeFusion?.confidenceLabel ?? null,
       fusionWarnings: realtimeFusion?.warnings ?? [],
+      margin: liveMargin,
     },
     decision: {
       status: safety.status,
@@ -196,6 +203,7 @@ function buildDashboardPayload(
       disagreementScore: forecastFusion.disagreementScore,
     },
     kite,
+    wing,
     safety,
     surf,
     stations: stations.all,

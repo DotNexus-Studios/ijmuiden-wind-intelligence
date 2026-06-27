@@ -1,47 +1,33 @@
 "use client";
 
-import { CurrentConditionsCard, StationInfoCard } from "@/components/dashboard/hero-card";
-import { LiveFusionCard } from "@/components/dashboard/live-fusion-card";
-import { MobileDecisionStrip } from "@/components/dashboard/mobile-decision-strip";
-import { SensorNetworkCard } from "@/components/dashboard/sensor-network-card";
+import { CurrentConditionsCard } from "@/components/dashboard/hero-card";
 import {
   ForecastOverviewCard,
-  ModelComparisonTable,
-  WindGustsChart,
   ForecastFusedChart,
+  WindGustsChart,
 } from "@/components/dashboard/forecast-charts";
-import {
-  KiteCalculator,
-  SafetyCheck,
-  StationDetails,
-  DataSourcesPanel,
-  FusionTransparencyCard,
-  DebugDrawer,
-} from "@/components/dashboard/sections";
-import { SurfConditionsCard } from "@/components/dashboard/surf-card";
 import { StickyDecisionBar } from "@/components/dashboard/sticky-bar";
 import { LoadingBanner } from "@/components/dashboard/loading-banner";
+import { SportSwitcher } from "@/components/dashboard/sport-switcher";
+import { useSport } from "@/components/dashboard/sport-context";
 import {
   ChartCardSkeleton,
   ForecastOverviewSkeleton,
   HeroCardSkeleton,
-  KiteCalculatorSkeleton,
-  SafetyCheckSkeleton,
-  StationInfoSkeleton,
-  SurfCardSkeleton,
   StickyBarSkeleton,
-  TableCardSkeleton,
 } from "@/components/dashboard/dashboard-skeletons";
 import { UI } from "@/lib/i18n/nl";
 import type { RiderWeight } from "@/lib/watersport/kite-size";
 import { useDashboardData } from "@/hooks/use-dashboard-data";
-import { AlertCircle, Menu, Sun, Waves } from "lucide-react";
+import { AlertCircle, Waves } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import Link from "next/link";
+import { NavMenu } from "@/components/dashboard/nav-menu";
 import { useState } from "react";
-import { cn } from "@/lib/utils";
 
 export function Dashboard() {
   const [weight, setWeight] = useState<RiderWeight>("medium");
+  const { sport, setSport } = useSport();
   const { data, phase, loading, polling, error, newMeasurement, refresh } = useDashboardData(weight);
 
   if (phase === "error" && !data) {
@@ -61,19 +47,32 @@ export function Dashboard() {
     <>
       <LoadingBanner phase={phase} className="mb-4" />
 
-      <div className="pb-28 space-y-4 min-w-0 max-w-full">
-        {data && (
-          <MobileDecisionStrip data={data} onRefresh={refresh} loading={loading || polling} />
-        )}
+      <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+        <SportSwitcher value={sport} onChange={setSport} />
+        <Link
+          href="/intelligence"
+          className="text-xs font-semibold text-primary hover:underline shrink-0"
+        >
+          {UI.dataIntelligence} →
+        </Link>
+      </div>
 
+      <div className="pb-24 space-y-4 min-w-0 max-w-full">
         <div className="grid xl:grid-cols-2 gap-4 min-w-0">
           {data ? (
-            <CurrentConditionsCard data={data} newMeasurement={newMeasurement} loadingLive={loading} />
+            <CurrentConditionsCard
+              data={data}
+              sport={sport}
+              riderWeight={weight}
+              onWeightChange={setWeight}
+              newMeasurement={newMeasurement}
+              loadingLive={loading}
+            />
           ) : (
             <HeroCardSkeleton />
           )}
           {hasForecast && data ? (
-            <ForecastOverviewCard data={data} />
+            <ForecastOverviewCard data={data} sport={sport} />
           ) : (
             <ForecastOverviewSkeleton />
           )}
@@ -81,89 +80,32 @@ export function Dashboard() {
 
         <div className="grid lg:grid-cols-2 gap-4 min-w-0">
           {hasForecast && data ? (
-            <WindGustsChart data={data} />
+            <WindGustsChart data={data} sport={sport} />
           ) : (
             <ChartCardSkeleton title={UI.windGusts} />
           )}
           {hasForecast && data ? (
-            <ForecastFusedChart data={data} />
+            <ForecastFusedChart data={data} sport={sport} />
           ) : (
             <ChartCardSkeleton title={UI.forecastFused} />
           )}
         </div>
-
-        <div className="grid lg:grid-cols-2 gap-4 min-w-0">
-          {hasForecast && data ? (
-            <ModelComparisonTable data={data} />
-          ) : (
-            <TableCardSkeleton />
-          )}
-          {data ? (
-            <SurfConditionsCard data={data} />
-          ) : (
-            <SurfCardSkeleton />
-          )}
-        </div>
-
-        <div className="grid lg:grid-cols-2 gap-4 min-w-0">
-          {data?.fusion ? (
-            <LiveFusionCard data={data} onRefresh={refresh} loading={loading || polling} />
-          ) : null}
-          {data?.fusion ? <SensorNetworkCard data={data} /> : null}
-        </div>
-
-        <div className="grid lg:grid-cols-2 gap-4 min-w-0">
-          {data ? (
-            <SafetyCheck data={data} />
-          ) : (
-            <SafetyCheckSkeleton />
-          )}
-          {data ? (
-            <KiteCalculator data={data} weight={weight} onWeightChange={setWeight} />
-          ) : (
-            <KiteCalculatorSkeleton />
-          )}
-        </div>
-
-        <div className="grid lg:grid-cols-2 gap-4 min-w-0">
-          {data ? (
-            <StationInfoCard data={data} loadingLive={loading} />
-          ) : (
-            <StationInfoSkeleton />
-          )}
-        </div>
-
-        {data && (
-          <details className="group min-w-0">
-            <summary className="cursor-pointer text-xs text-slate-400 hover:text-slate-600 py-2 list-none flex items-center gap-1">
-              <span className="group-open:rotate-90 transition-transform inline-block">›</span>
-              Technische details & debug
-            </summary>
-            <div className="space-y-3 pt-2 min-w-0">
-              <FusionTransparencyCard data={data} />
-              <StationDetails data={data} />
-              <DataSourcesPanel />
-              <DebugDrawer data={data} />
-            </div>
-          </details>
-        )}
       </div>
 
       {data ? (
-        <StickyDecisionBar data={data} onRefresh={refresh} loading={loading || polling} />
+        <StickyDecisionBar
+          data={data}
+          sport={sport}
+          riderWeight={weight}
+          onRefresh={refresh}
+          loading={loading || polling}
+        />
       ) : (
         <StickyBarSkeleton />
       )}
     </>
   );
 }
-
-const NAV = [
-  { id: "dashboard", label: UI.navDashboard, active: true },
-  { id: "forecast", label: UI.navForecast, active: false },
-  { id: "tools", label: UI.navTools, active: false },
-  { id: "stations", label: UI.navStations, active: false },
-];
 
 export function DashboardHeader() {
   return (
@@ -180,30 +122,8 @@ export function DashboardHeader() {
             </div>
           </div>
 
-          <nav className="hidden md:flex items-center gap-1 shrink-0">
-            {NAV.map((item) => (
-              <button
-                key={item.id}
-                type="button"
-                className={cn(
-                  "px-3 py-1.5 text-sm font-medium rounded-lg transition-colors whitespace-nowrap",
-                  item.active
-                    ? "text-primary bg-blue-50"
-                    : "text-muted-foreground hover:text-foreground hover:bg-slate-50"
-                )}
-              >
-                {item.label}
-              </button>
-            ))}
-          </nav>
-
           <div className="flex items-center gap-1 shrink-0">
-            <Button variant="ghost" size="icon" className="text-muted-foreground" aria-label="Thema">
-              <Sun className="h-5 w-5" />
-            </Button>
-            <Button variant="ghost" size="icon" className="md:hidden text-muted-foreground" aria-label="Menu">
-              <Menu className="h-5 w-5" />
-            </Button>
+            <NavMenu />
           </div>
         </div>
       </div>

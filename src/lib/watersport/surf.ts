@@ -53,7 +53,11 @@ function effectiveWaveHeight(input: SurfAssessmentInput): number {
   return Math.max(input.waveHeightM, swell * 0.85);
 }
 
-function scoreSurfPoint(input: SurfAssessmentInput): { score: number; status: SurfStatus; label: string } {
+export function scoreSurfPoint(input: SurfAssessmentInput): {
+  score: number;
+  status: SurfStatus;
+  label: string;
+} {
   const h = effectiveWaveHeight(input);
   const period = Math.max(input.wavePeriodS, input.swellPeriodS ?? 0);
   const windKt = msToKnots(input.windSpeedMs);

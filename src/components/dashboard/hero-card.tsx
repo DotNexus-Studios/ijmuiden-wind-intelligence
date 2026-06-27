@@ -12,19 +12,32 @@ import {
   WindCompass,
 } from "@/components/dashboard/wind-display";
 import { msToKnots } from "@/lib/units/wind";
-import { UI, formatObservationClock } from "@/lib/i18n/nl";
+import { STATUS_LABELS, UI, formatObservationClock } from "@/lib/i18n/nl";
 import type { DashboardData } from "@/lib/dashboard";
+import { buildSportSnapshots, toDisplayStatus, type SportId } from "@/lib/watersport/sports";
+import type { RiderWeight } from "@/lib/watersport/kite-size";
 import { formatDistanceToNow } from "date-fns";
 import { nl } from "date-fns/locale";
 
 interface HeroCardProps {
   data: DashboardData;
+  sport?: SportId;
+  riderWeight?: RiderWeight;
+  onWeightChange?: (w: RiderWeight) => void;
   newMeasurement?: boolean;
   loadingLive?: boolean;
 }
 
-export function CurrentConditionsCard({ data, newMeasurement, loadingLive }: HeroCardProps) {
-  const { decision, live } = data;
+export function CurrentConditionsCard({
+  data,
+  sport = "kite",
+  riderWeight = "medium",
+  newMeasurement,
+  loadingLive,
+}: HeroCardProps) {
+  const snapshot = buildSportSnapshots(data, riderWeight)[sport];
+  const { live } = data;
+  const displayStatus = toDisplayStatus(snapshot.status);
   const gustKt = Math.round(msToKnots(live.gustMs));
   const obsTime = data.observationTimestamp;
   const stationName = live.sourceLabel ?? live.station?.station.name ?? "IJGeul, 1";
@@ -62,20 +75,31 @@ export function CurrentConditionsCard({ data, newMeasurement, loadingLive }: Her
 
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_auto] items-start min-w-0">
         <div className="min-w-0 order-2 lg:order-1">
-          <StatusBadge status={decision.status} size="hero" />
+          <StatusBadge status={displayStatus} size="hero" />
           <div className="mt-5 max-w-sm w-full">
             <div className="flex items-center justify-between text-sm mb-1.5">
               <span className="text-slate-500 font-medium">{UI.confidence}</span>
               {awaitingLive && !obsTime ? (
                 <Skeleton className="h-4 w-10" />
               ) : (
-                <span className="font-bold text-emerald-600">{decision.confidence}%</span>
+                <span className="font-bold text-emerald-600">{snapshot.confidence}%</span>
               )}
             </div>
-            <Progress value={decision.confidence} className="h-2.5 bg-slate-100 [&>div]:bg-emerald-500" />
+            <Progress value={snapshot.confidence} className="h-2.5 bg-slate-100 [&>div]:bg-emerald-500" />
           </div>
           <p className="text-sm text-slate-600 mt-4 leading-relaxed break-words">
-            {decision.explanation.split(".").slice(0, 2).join(".")}.
+            {snapshot.explanation.split(".").slice(0, 2).join(".")}.
+          </p>
+
+          {sport === "surf" && snapshot.waveHeightCm != null && (
+            <div className="mt-3 text-sm font-semibold text-slate-700">
+              {UI.waveHeight}: {snapshot.waveHeightCm} cm · {UI.wavePeriod}:{" "}
+              {snapshot.wavePeriodS?.toFixed(1)} s
+            </div>
+          )}
+
+          <p className="text-xs text-slate-500 mt-2">
+            {UI.margin}: {data.live.margin.label}
           </p>
 
           <div className="grid grid-cols-3 gap-3 mt-6 min-w-0">
