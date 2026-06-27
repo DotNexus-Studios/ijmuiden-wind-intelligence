@@ -1,10 +1,11 @@
 "use client";
 
-import { DirectionLabel, StatusBadge } from "@/components/dashboard/wind-display";
+import { StatusBadge } from "@/components/dashboard/wind-display";
 import { Button } from "@/components/ui/button";
 import { UI } from "@/lib/i18n/nl";
 import type { DashboardData } from "@/lib/dashboard";
 import { buildSportSnapshots, toDisplayStatus, type SportId } from "@/lib/watersport/sports";
+import { buildStickyColumns } from "@/lib/watersport/sport-display";
 import type { RiderWeight } from "@/lib/watersport/kite-size";
 import { RefreshCw } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -24,10 +25,11 @@ export function StickyDecisionBar({
   onRefresh,
   loading,
 }: StickyBarProps) {
-  const { live, fusion } = data;
+  const { fusion } = data;
   const snapshot = buildSportSnapshots(data, riderWeight)[sport];
   const displayStatus = toDisplayStatus(snapshot.status);
   const confidence = fusion?.confidence ?? snapshot.confidence;
+  const stickyColumns = buildStickyColumns(data, sport, snapshot, confidence);
 
   return (
     <div className="fixed bottom-0 inset-x-0 z-50 border-t border-border bg-white/98 backdrop-blur-md shadow-[0_-4px_20px_rgba(15,23,42,0.08)] safe-bottom">
@@ -57,12 +59,9 @@ export function StickyDecisionBar({
               className="!text-[9px] sm:!text-[10px]"
             />
           </div>
-          <Inline label={UI.wind} value={`${live.formatted.knots} kn`} />
-          <Inline
-            label={UI.direction}
-            value={<DirectionLabel direction={live.directionDeg} compact />}
-          />
-          <Inline label={UI.confidence} value={`${confidence}%`} />
+          {stickyColumns.map((col) => (
+            <Inline key={col.label} label={col.label} value={col.value} />
+          ))}
         </div>
       </div>
     </div>

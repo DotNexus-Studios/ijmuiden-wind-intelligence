@@ -4,6 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
 import { SectionHeader } from "@/components/dashboard/section-header";
+import { WaveSidePanel } from "@/components/dashboard/wave-side-panel";
 import {
   FreshnessDot,
   LiveBadge,
@@ -12,9 +13,15 @@ import {
   WindCompass,
 } from "@/components/dashboard/wind-display";
 import { msToKnots } from "@/lib/units/wind";
-import { STATUS_LABELS, UI, formatObservationClock } from "@/lib/i18n/nl";
+import { UI, formatObservationClock } from "@/lib/i18n/nl";
 import type { DashboardData } from "@/lib/dashboard";
 import { buildSportSnapshots, toDisplayStatus, type SportId } from "@/lib/watersport/sports";
+import {
+  buildHeroMetrics,
+  getSportDataFocus,
+  getSportSubtitle,
+  getSurfSecondaryWind,
+} from "@/lib/watersport/sport-display";
 import type { RiderWeight } from "@/lib/watersport/kite-size";
 import { formatDistanceToNow } from "date-fns";
 import { nl } from "date-fns/locale";
@@ -37,11 +44,17 @@ export function CurrentConditionsCard({
 }: HeroCardProps) {
   const snapshot = buildSportSnapshots(data, riderWeight)[sport];
   const { live } = data;
+  const focus = getSportDataFocus(sport);
   const displayStatus = toDisplayStatus(snapshot.status);
   const gustKt = Math.round(msToKnots(live.gustMs));
   const obsTime = data.observationTimestamp;
-  const stationName = live.sourceLabel ?? live.station?.station.name ?? "IJGeul, 1";
   const awaitingLive = loadingLive || data.preview;
+  const heroMetrics = buildHeroMetrics(data, sport, snapshot);
+  const waveHeightCm =
+    snapshot.waveHeightCm ??
+    data.water.waveHeightCm ??
+    Math.round(data.surf.now.effectiveHeightM * 100);
+  const wavePeriodS = snapshot.wavePeriodS ?? data.water.wavePeriodS ?? data.surf.now.wavePeriodS;
 
   return (
     <section className="dashboard-card p-5 sm:p-6 h-full min-w-0 max-w-full">
@@ -66,11 +79,7 @@ export function CurrentConditionsCard({
       />
 
       <p className="text-sm text-slate-500 -mt-2 mb-4 truncate">
-        {awaitingLive && !obsTime
-          ? UI.loadingPreview
-          : live.combinedSources
-            ? `${UI.combinedSources}: ${stationName}`
-            : stationName}
+        {getSportSubtitle(data, sport, Boolean(awaitingLive && !obsTime))}
       </p>
 
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_auto] items-start min-w-0">
@@ -102,35 +111,94 @@ export function CurrentConditionsCard({
             {snapshot.explanation.split(".").slice(0, 2).join(".")}.
           </p>
 
-          {sport === "surf" && snapshot.waveHeightCm != null && (
-            <div className="mt-3 text-sm font-semibold text-slate-700">
-              {UI.waveHeight}: {snapshot.waveHeightCm} cm · {UI.wavePeriod}:{" "}
-              {snapshot.wavePeriodS?.toFixed(1)} s
+          {focus === "wind" && (
+            <p className="text-xs text-slate-500 mt-2">
+              {UI.margin}: {data.live.margin.label}
+            </p>
+          )}
+
+          {focus === "wave" ? (
+            <div className={`grid grid-cols-2 gap-3 mt-6 min-w-0 ${heroMetrics.length > 4 ? "sm:grid-cols-2" : ""}`}>
+              {heroMetrics.map((metric) => (
+                <MetricBlock
+                  key={metric.label}
+                  label={metric.label}
+                  value={metric.value}
+                  sub={metric.sub}
+                  loading={awaitingLive && !obsTime}
+                />
+              ))}
+            </div>
+          ) : focus === "mixed" ? (
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mt-6 min-w-0">
+              {heroMetrics.map((metric) => (
+                <MetricBlock
+                  key={metric.label}
+                  label={metric.label}
+                  value={metric.value}
+                  sub={metric.sub}
+                  loading={awaitingLive && !obsTime}
+                />
+              ))}
+            </div>
+          ) : (
+            <div className="grid grid-cols-3 gap-3 mt-6 min-w-0">
+              <MetricBlock
+                label={UI.wind}
+                value={`${live.formatted.knots} kt`}
+                sub={`(${Math.round(live.formatted.ms * 3.6)} km/u)`}
+                loading={awaitingLive && !obsTime}
+              />
+              <MetricBlock
+                label={UI.gusts}
+                value={`${gustKt} kt`}
+                sub={`(${Math.round(live.gustMs * 3.6)} km/u)`}
+                loading={awaitingLive && !obsTime}
+              />
+              <div className="min-w-0">
+                <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400 mb-1">{UI.trend}</p>
+                <TrendArrow trend={live.trend} />
+              </div>
             </div>
           )}
 
-          <p className="text-xs text-slate-500 mt-2">
-            {UI.margin}: {data.live.margin.label}
-          </p>
-
-          <div className="grid grid-cols-3 gap-3 mt-6 min-w-0">
-            <MetricBlock label={UI.wind} value={`${live.formatted.knots} kt`} sub={`(${Math.round(live.formatted.ms * 3.6)} km/u)`} loading={awaitingLive && !obsTime} />
-            <MetricBlock label={UI.gusts} value={`${gustKt} kt`} sub={`(${Math.round(live.gustMs * 3.6)} km/u)`} loading={awaitingLive && !obsTime} />
-            <div className="min-w-0">
-              <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400 mb-1">{UI.trend}</p>
-              <TrendArrow trend={live.trend} />
-            </div>
-          </div>
+          {focus === "wave" && (
+            <p className="text-xs text-slate-400 mt-4">
+              {UI.windSecondary}: {getSurfSecondaryWind(data)}
+            </p>
+          )}
         </div>
 
         <div className="order-1 lg:order-2 w-full max-w-[220px] mx-auto lg:mx-0 lg:max-w-none shrink-0">
-          <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400 mb-2 text-center lg:text-left">
-            {UI.windRose}
-          </p>
-          {awaitingLive && !obsTime ? (
-            <Skeleton className="w-44 h-44 sm:w-52 sm:h-52 rounded-full mx-auto" />
+          {focus === "wave" ? (
+            awaitingLive && !obsTime ? (
+              <Skeleton className="w-44 h-52 rounded-2xl mx-auto" />
+            ) : (
+              <WaveSidePanel
+                data={data}
+                waveHeightCm={waveHeightCm}
+                wavePeriodS={wavePeriodS}
+              />
+            )
           ) : (
-            <WindCompass direction={live.directionDeg} size="xl" showZones prominent />
+            <>
+              <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400 mb-2 text-center lg:text-left">
+                {UI.windRose}
+              </p>
+              {awaitingLive && !obsTime ? (
+                <Skeleton className="w-44 h-44 sm:w-52 sm:h-52 rounded-full mx-auto" />
+              ) : (
+                <WindCompass direction={live.directionDeg} size="xl" showZones prominent />
+              )}
+              {focus === "mixed" && !awaitingLive && (
+                <WaveSidePanel
+                  data={data}
+                  waveHeightCm={waveHeightCm}
+                  wavePeriodS={wavePeriodS}
+                  compact
+                />
+              )}
+            </>
           )}
         </div>
       </div>

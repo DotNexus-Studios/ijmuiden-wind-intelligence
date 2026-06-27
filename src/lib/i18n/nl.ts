@@ -139,6 +139,7 @@ export const UI = {
   waveInterval: "Tijd tussen golven",
   wingSetup: "Optimale setup",
   windsurf: "Windsurf",
+  windSecondary: "Wind (secundair)",
   backToDashboard: "Terug naar dashboard",
 } as const;
 

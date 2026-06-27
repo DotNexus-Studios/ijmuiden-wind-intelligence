@@ -41,6 +41,17 @@ interface ChartSportProps {
   sport: SportId;
 }
 
+function findSurfPointAtTime(
+  data: DashboardData,
+  time: string
+): { waveHeightM: number; wavePeriodS: number } | null {
+  const match = data.surf.timeline.find(
+    (t) => Math.abs(new Date(t.time).getTime() - new Date(time).getTime()) < 3_600_000
+  );
+  if (!match) return null;
+  return { waveHeightM: match.waveHeightM, wavePeriodS: match.wavePeriodS };
+}
+
 export function ForecastOverviewCard({ data, sport }: ChartSportProps) {
   const items = useMemo(() => {
     const timeline = data.forecast.timeline;
@@ -85,6 +96,12 @@ export function ForecastOverviewCard({ data, sport }: ChartSportProps) {
         <div className="flex gap-2 w-max max-w-none pb-1">
           {items.map((point) => {
             const go = isGoStatus(point.status);
+            const surfPoint = sport !== "kite" && sport !== "wingfoil"
+              ? findSurfPointAtTime(data, point.time)
+              : null;
+            const waveCm = surfPoint ? Math.round(surfPoint.waveHeightM * 100) : 0;
+            const wavePeriod = surfPoint?.wavePeriodS;
+
             return (
               <div
                 key={`${point.displayLabel}-${point.time}`}
@@ -97,24 +114,37 @@ export function ForecastOverviewCard({ data, sport }: ChartSportProps) {
                 </p>
                 <p className="text-2xl font-bold tabular-nums text-slate-900 mt-1">
                   {sport === "surf"
-                    ? Math.round(
-                        (data.surf.timeline.find(
-                          (t) =>
-                            Math.abs(new Date(t.time).getTime() - new Date(point.time).getTime()) <
-                            3_600_000
-                        )?.waveHeightM ?? 0) * 100
-                      )
+                    ? waveCm
                     : Math.round(msToKnots(point.speedMs))}
                 </p>
-                <p className="text-[10px] text-slate-500">{sport === "surf" ? "cm" : "kt"}</p>
-                {sport !== "surf" && (
+                <p className="text-[10px] text-slate-500">
+                  {sport === "surf" ? "cm" : "kt"}
+                </p>
+                {sport === "surf" && wavePeriod != null && (
+                  <p className="text-[10px] text-slate-500 mt-1">
+                    {wavePeriod.toFixed(1)} s
+                  </p>
+                )}
+                {sport === "windsurf" && (
+                  <>
+                    <p className="text-[10px] text-slate-500 mt-1">
+                      Gust {Math.round(msToKnots(point.gustMs))}
+                    </p>
+                    <p className="text-[10px] text-indigo-600 font-medium">
+                      {waveCm} cm · {wavePeriod?.toFixed(1) ?? "?"} s
+                    </p>
+                  </>
+                )}
+                {sport !== "surf" && sport !== "windsurf" && (
                   <p className="text-[10px] text-slate-500 mt-1">
                     Gust {Math.round(msToKnots(point.gustMs))}
                   </p>
                 )}
-                <div className="flex justify-center my-1">
-                  <DirectionArrow degrees={point.directionDeg} />
-                </div>
+                {sport !== "surf" && (
+                  <div className="flex justify-center my-1">
+                    <DirectionArrow degrees={point.directionDeg} />
+                  </div>
+                )}
                 <p className="text-[10px] text-slate-400">{Math.round(point.confidence)}%</p>
                 <div className="mt-2 flex justify-center">
                   <StatusBadge status={point.displayStatus} size="sm" />
@@ -132,15 +162,18 @@ export function WindGustsChart({ data, sport }: ChartSportProps) {
   const [range, setRange] = useState("12H");
   const hours = HOUR_SLICES[range] ?? 12;
   const goRange = getSportWindGoRange(sport);
+  const showWaveOverlay = sport === "windsurf";
 
   const chartData = data.forecast.points.slice(0, hours).map((p, i) => {
     const status = assessForecastPointForSport(sport, p, data.surf.timeline);
     const wind = Math.round(msToKnots(p.speedMs));
     const gust = Math.round(msToKnots(p.gustMs));
+    const surfPoint = findSurfPointAtTime(data, p.time);
     return {
       time: new Date(p.time).toLocaleTimeString("nl-NL", { hour: "2-digit", minute: "2-digit" }),
       wind,
       gust,
+      wave: surfPoint ? Math.round(surfPoint.waveHeightM * 100) : null,
       isNow: i === 0,
       isGo: isGoStatus(status),
       isWait: status === "WAIT" || status === "FLAT",
@@ -150,7 +183,7 @@ export function WindGustsChart({ data, sport }: ChartSportProps) {
   return (
     <section className="dashboard-card p-5 sm:p-6 min-w-0 max-w-full overflow-hidden">
       <SectionHeader
-        title={UI.windGusts}
+        title={showWaveOverlay ? `${UI.windGusts} & ${UI.waveHeight.toLowerCase()}` : UI.windGusts}
         action={<TimeRangeToggle options={["12H", "24H", "3D"]} value={range} onChange={setRange} />}
       />
       <div className="h-52 w-full min-w-0">
@@ -172,10 +205,20 @@ export function WindGustsChart({ data, sport }: ChartSportProps) {
             )}
             <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
             <XAxis dataKey="time" tick={{ fontSize: 10, fill: "#94a3b8" }} interval="preserveStartEnd" />
-            <YAxis tick={{ fontSize: 10, fill: "#94a3b8" }} unit=" kt" width={34} />
+            <YAxis yAxisId="wind" tick={{ fontSize: 10, fill: "#94a3b8" }} unit=" kt" width={34} />
+            {showWaveOverlay && (
+              <YAxis
+                yAxisId="wave"
+                orientation="right"
+                tick={{ fontSize: 10, fill: "#6366f1" }}
+                unit=" cm"
+                width={34}
+              />
+            )}
             <Tooltip contentStyle={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 8, fontSize: 12 }} />
-            <Area type="monotone" dataKey="gust" fill="#dbeafe" stroke="#93c5fd" strokeWidth={1} name="Vlagen" />
+            <Area yAxisId="wind" type="monotone" dataKey="gust" fill="#dbeafe" stroke="#93c5fd" strokeWidth={1} name="Vlagen" />
             <Line
+              yAxisId="wind"
               type="monotone"
               dataKey="wind"
               stroke="#2563eb"
@@ -196,6 +239,19 @@ export function WindGustsChart({ data, sport }: ChartSportProps) {
               }}
               name="Wind"
             />
+            {showWaveOverlay && (
+              <Line
+                yAxisId="wave"
+                type="monotone"
+                dataKey="wave"
+                stroke="#6366f1"
+                strokeWidth={1.5}
+                strokeDasharray="4 3"
+                dot={false}
+                name="Golf (cm)"
+                connectNulls
+              />
+            )}
             {chartData[0] && (
               <ReferenceLine
                 x={chartData[0].time}
@@ -235,17 +291,40 @@ export function ForecastFusedChart({ data, sport }: ChartSportProps) {
   });
 
   const chartData = sport === "surf" ? surfChartData : windChartData;
+  const windsurfChartData =
+    sport === "windsurf"
+      ? data.forecast.points.slice(0, hours).map((p) => {
+          const status = assessForecastPointForSport(sport, p, data.surf.timeline);
+          const surfPoint = findSurfPointAtTime(data, p.time);
+          return {
+            time: new Date(p.time).toLocaleDateString("nl-NL", { weekday: "short", hour: "2-digit" }),
+            wind: Math.round(msToKnots(p.speedMs)),
+            gust: Math.round(msToKnots(p.gustMs)),
+            wave: surfPoint ? Math.round(surfPoint.waveHeightM * 100) : null,
+            isGo: isGoStatus(status),
+            isWait: status === "WAIT" || status === "FLAT",
+          };
+        })
+      : null;
+
+  const activeChartData = sport === "windsurf" ? windsurfChartData! : chartData;
 
   return (
     <section className="dashboard-card p-5 sm:p-6 min-w-0 max-w-full overflow-hidden">
       <SectionHeader
-        title={sport === "surf" ? UI.surfForecast48h : UI.forecastFused}
+        title={
+          sport === "surf"
+            ? UI.surfForecast48h
+            : sport === "windsurf"
+              ? `${UI.forecastFused} & ${UI.waveHeight.toLowerCase()}`
+              : UI.forecastFused
+        }
         action={<TimeRangeToggle options={["24H", "3D", "5D"]} value={range} onChange={setRange} />}
       />
       <div className="h-52 w-full min-w-0">
         <ResponsiveContainer width="100%" height="100%">
           <ComposedChart
-            data={chartData as Array<Record<string, unknown>>}
+            data={activeChartData as Array<Record<string, unknown>>}
             margin={{ top: 8, right: 8, left: 0, bottom: 0 }}
           >
             {sport === "surf" ? (
@@ -255,11 +334,18 @@ export function ForecastFusedChart({ data, sport }: ChartSportProps) {
             )}
             <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
             <XAxis dataKey="time" tick={{ fontSize: 10, fill: "#94a3b8" }} interval="preserveStartEnd" />
-            <YAxis
-              tick={{ fontSize: 10, fill: "#94a3b8" }}
-              unit={sport === "surf" ? " cm" : " kt"}
-              width={38}
-            />
+            {sport === "windsurf" ? (
+              <>
+                <YAxis yAxisId="wind" tick={{ fontSize: 10, fill: "#94a3b8" }} unit=" kt" width={38} />
+                <YAxis yAxisId="wave" orientation="right" tick={{ fontSize: 10, fill: "#6366f1" }} unit=" cm" width={38} />
+              </>
+            ) : (
+              <YAxis
+                tick={{ fontSize: 10, fill: "#94a3b8" }}
+                unit={sport === "surf" ? " cm" : " kt"}
+                width={38}
+              />
+            )}
             <Tooltip contentStyle={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 8, fontSize: 12 }} />
             {sport === "surf" ? (
               <Area type="monotone" dataKey="wave" fill="#e0e7ff" stroke="#6366f1" strokeWidth={2} name="Golf (cm)" dot={(props) => {
@@ -269,6 +355,43 @@ export function ForecastFusedChart({ data, sport }: ChartSportProps) {
                   <circle cx={cx} cy={cy} r={3} fill={goDotColor(payload.isGo, payload.isWait)} stroke="#fff" strokeWidth={1} />
                 );
               }} />
+            ) : sport === "windsurf" ? (
+              <>
+                <Area yAxisId="wind" type="monotone" dataKey="gust" fill="#e0e7ff" stroke="none" name="Vlagen" />
+                <Line
+                  yAxisId="wind"
+                  type="monotone"
+                  dataKey="wind"
+                  stroke="#2563eb"
+                  strokeWidth={2.5}
+                  dot={(props) => {
+                    const { cx, cy, payload } = props;
+                    if (cx == null || cy == null) return null;
+                    return (
+                      <circle
+                        cx={cx}
+                        cy={cy}
+                        r={3}
+                        fill={goDotColor(payload.isGo, payload.isWait)}
+                        stroke="#fff"
+                        strokeWidth={1}
+                      />
+                    );
+                  }}
+                  name="Wind"
+                />
+                <Line
+                  yAxisId="wave"
+                  type="monotone"
+                  dataKey="wave"
+                  stroke="#6366f1"
+                  strokeWidth={1.5}
+                  strokeDasharray="4 3"
+                  dot={false}
+                  name="Golf (cm)"
+                  connectNulls
+                />
+              </>
             ) : (
               <>
                 <Area type="monotone" dataKey="gust" fill="#e0e7ff" stroke="none" name="Vlagen" />
