@@ -5,7 +5,6 @@ import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
 import { SectionHeader } from "@/components/dashboard/section-header";
 import {
-  DirectionLabel,
   FreshnessDot,
   LiveBadge,
   StatusBadge,
@@ -57,8 +56,8 @@ export function CurrentConditionsCard({ data, newMeasurement, loadingLive }: Her
         {awaitingLive && !obsTime ? UI.loadingPreview : `RWS ${stationName}`}
       </p>
 
-      <div className="grid lg:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)] gap-6 items-start min-w-0">
-        <div className="min-w-0">
+      <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_auto] items-start min-w-0">
+        <div className="min-w-0 order-2 lg:order-1">
           <StatusBadge status={decision.status} size="hero" />
           <div className="mt-5 max-w-sm w-full">
             <div className="flex items-center justify-between text-sm mb-1.5">
@@ -74,26 +73,26 @@ export function CurrentConditionsCard({ data, newMeasurement, loadingLive }: Her
           <p className="text-sm text-slate-600 mt-4 leading-relaxed break-words">
             {decision.explanation.split(".").slice(0, 2).join(".")}.
           </p>
-        </div>
 
-        <div className="grid grid-cols-2 gap-x-3 gap-y-5 sm:grid-cols-4 lg:grid-cols-2 xl:grid-cols-4 min-w-0">
-          <MetricBlock label={UI.wind} value={`${live.formatted.knots} kt`} sub={`(${Math.round(live.formatted.ms * 3.6)} km/u)`} loading={awaitingLive && !obsTime} />
-          <MetricBlock label={UI.gusts} value={`${gustKt} kt`} sub={`(${Math.round(live.gustMs * 3.6)} km/u)`} loading={awaitingLive && !obsTime} />
-          <div className="min-w-0">
-            <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400 mb-1">{UI.direction}</p>
-            {awaitingLive && !obsTime ? (
-              <Skeleton className="h-5 w-20" />
-            ) : (
-              <DirectionLabel direction={live.directionDeg} />
-            )}
-            <div className="mt-1">
-              <WindCompass direction={live.directionDeg} size="sm" />
+          <div className="grid grid-cols-3 gap-3 mt-6 min-w-0">
+            <MetricBlock label={UI.wind} value={`${live.formatted.knots} kt`} sub={`(${Math.round(live.formatted.ms * 3.6)} km/u)`} loading={awaitingLive && !obsTime} />
+            <MetricBlock label={UI.gusts} value={`${gustKt} kt`} sub={`(${Math.round(live.gustMs * 3.6)} km/u)`} loading={awaitingLive && !obsTime} />
+            <div className="min-w-0">
+              <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400 mb-1">{UI.trend}</p>
+              <TrendArrow trend={live.trend} />
             </div>
           </div>
-          <div className="min-w-0">
-            <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400 mb-1">{UI.trend}</p>
-            <TrendArrow trend={live.trend} />
-          </div>
+        </div>
+
+        <div className="order-1 lg:order-2 w-full max-w-[220px] mx-auto lg:mx-0 lg:max-w-none shrink-0">
+          <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400 mb-2 text-center lg:text-left">
+            {UI.windRose}
+          </p>
+          {awaitingLive && !obsTime ? (
+            <Skeleton className="w-44 h-44 sm:w-52 sm:h-52 rounded-full mx-auto" />
+          ) : (
+            <WindCompass direction={live.directionDeg} size="xl" showZones prominent />
+          )}
         </div>
       </div>
 
@@ -148,7 +147,11 @@ export function StationInfoCard({ data, loadingLive }: HeroCardProps) {
     <section className="dashboard-card p-5 sm:p-6 h-full min-w-0 max-w-full">
       <SectionHeader title={UI.stationInfo} />
       <div className="grid md:grid-cols-[auto_1fr] gap-6 items-center min-w-0">
-        <WindCompass direction={live.directionDeg} size="lg" />
+        {awaitingLive && !data.observationTimestamp ? (
+          <Skeleton className="w-40 h-40 rounded-full mx-auto shrink-0" />
+        ) : (
+          <WindCompass direction={live.directionDeg} size="lg" showZones />
+        )}
         <div className="space-y-2.5 text-sm min-w-0">
           <p className="font-semibold text-slate-800 truncate">
             {awaitingLive && !station ? UI.loadingLive : `${station?.station.name ?? "IJmuiden Buitenhaven"} (RWS)`}

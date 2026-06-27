@@ -1,8 +1,16 @@
 "use client";
 
+import { useId } from "react";
 import { cn } from "@/lib/utils";
-import { STATUS_LABELS, TREND_LABELS } from "@/lib/i18n/nl";
+import { STATUS_LABELS, TREND_LABELS, UI } from "@/lib/i18n/nl";
 import type { GoStatus } from "@/lib/watersport/safety";
+import {
+  classifyWindDirectionQuality,
+  compassPoint,
+  isOffshoreWind,
+  normalizeWindFromDeg,
+  windToDeg,
+} from "@/lib/units/wind";
 
 const STATUS_TEXT: Record<GoStatus, string> = {
   GO: "status-go-text",
@@ -92,53 +100,161 @@ export function TrendArrow({ trend }: { trend: "rising" | "stable" | "dropping" 
   );
 }
 
-export function WindCompass({ direction, size = "md" }: { direction: number; size?: "sm" | "md" | "lg" }) {
-  const dim = size === "lg" ? "w-36 h-36" : size === "sm" ? "w-12 h-12" : "w-24 h-24";
-  const dirs = ["N", "NO", "O", "ZO", "Z", "ZW", "W", "NW"];
-  const idx = Math.round(((direction % 360) + 360) % 360 / 45) % 8;
-  const label = dirs[idx];
+const COMPASS_LABELS = [
+  { label: "N", deg: 0 },
+  { label: "NO", deg: 45 },
+  { label: "O", deg: 90 },
+  { label: "ZO", deg: 135 },
+  { label: "Z", deg: 180 },
+  { label: "ZW", deg: 225 },
+  { label: "W", deg: 270 },
+  { label: "NW", deg: 315 },
+] as const;
+
+const DIRECTION_LABELS = ["N", "NNO", "NO", "ONO", "O", "OZO", "ZO", "ZZO", "Z", "ZZW", "ZW", "WZW", "W", "WNW", "NW", "NNW"];
+
+function sectorPath(cx: number, cy: number, r: number, startDeg: number, endDeg: number): string {
+  const start = compassPoint(cx, cy, r, startDeg);
+  const end = compassPoint(cx, cy, r, endDeg);
+  const span = ((endDeg - startDeg + 360) % 360) || 360;
+  const largeArc = span > 180 ? 1 : 0;
+  return `M ${cx} ${cy} L ${start.x} ${start.y} A ${r} ${r} 0 ${largeArc} 1 ${end.x} ${end.y} Z`;
+}
+
+interface WindCompassProps {
+  /** Meteorologische richting: waar de wind vandaan komt */
+  direction: number;
+  size?: "sm" | "md" | "lg" | "xl";
+  showZones?: boolean;
+  prominent?: boolean;
+  className?: string;
+}
+
+export function WindCompass({
+  direction,
+  size = "md",
+  showZones = false,
+  prominent = false,
+  className,
+}: WindCompassProps) {
+  const markerId = useId().replace(/:/g, "");
+  const fromDeg = normalizeWindFromDeg(direction);
+  const toDeg = windToDeg(fromDeg);
+  const quality = classifyWindDirectionQuality(fromDeg);
+  const offshore = isOffshoreWind(fromDeg);
+
+  const dims = {
+    sm: "w-14 h-14",
+    md: "w-24 h-24",
+    lg: "w-40 h-40",
+    xl: "w-44 h-44 sm:w-52 sm:h-52",
+  }[size];
+
+  const labelSize = size === "sm" ? "text-[7px]" : size === "md" ? "text-[8px]" : "text-[10px]";
+  const rim = size === "sm" ? 34 : size === "md" ? 38 : 46;
+  const arrowRim = size === "sm" ? 28 : size === "md" ? 32 : 40;
+
+  const fromPt = compassPoint(60, 60, arrowRim, fromDeg);
+  const toPt = compassPoint(60, 60, arrowRim, toDeg);
+  const fromIdx = Math.round(fromDeg / 22.5) % 16;
+  const toIdx = Math.round(toDeg / 22.5) % 16;
+  const fromLabel = DIRECTION_LABELS[fromIdx];
+  const toLabel = DIRECTION_LABELS[toIdx];
+
+  const qualityColors = {
+    offshore: { sector: "fill-red-100/80", arrow: "#dc2626" },
+    onshore: { sector: "fill-amber-100/60", arrow: "#2563eb" },
+    "side-onshore": { sector: "fill-emerald-100/80", arrow: "#2563eb" },
+    "side-shore": { sector: "fill-sky-100/60", arrow: "#2563eb" },
+  }[quality];
 
   return (
-    <div className={cn("relative mx-auto flex flex-col items-center", dim)}>
-      <svg viewBox="0 0 120 120" className="w-full h-full">
-        <circle cx="60" cy="60" r="52" fill="#f8fafc" stroke="#e2e8f0" strokeWidth="2" />
-        <circle cx="60" cy="60" r="42" fill="none" stroke="#e2e8f0" strokeWidth="1" strokeDasharray="4 4" />
-        {["N", "O", "Z", "W"].map((d, i) => {
-          const angle = i * 90 - 90;
-          const rad = (angle * Math.PI) / 180;
-          const x = 60 + Math.cos(rad) * 46;
-          const y = 60 + Math.sin(rad) * 46;
+    <div className={cn("relative mx-auto flex flex-col items-center min-w-0", dims, className)}>
+      <svg viewBox="0 0 120 120" className="w-full h-full drop-shadow-sm" role="img" aria-label={`${UI.windFrom} ${fromLabel}, ${UI.windTo} ${toLabel}`}>
+        <defs>
+          <marker id={`wind-arrowhead-${markerId}`} markerWidth="8" markerHeight="8" refX="6" refY="4" orient="auto">
+            <polygon points="0 0, 8 4, 0 8" fill={qualityColors.arrow} />
+          </marker>
+        </defs>
+
+        <circle cx="60" cy="60" r="52" className="fill-slate-50 stroke-slate-200" strokeWidth="2" />
+
+        {(showZones || prominent) && (
+          <>
+            <path d={sectorPath(60, 60, 50, 45, 135)} className="fill-red-100/70" />
+            <path d={sectorPath(60, 60, 50, 225, 315)} className="fill-emerald-100/70" />
+          </>
+        )}
+
+        <circle cx="60" cy="60" r="42" fill="none" className="stroke-slate-200" strokeWidth="1" strokeDasharray="3 3" />
+
+        {COMPASS_LABELS.map(({ label, deg }) => {
+          const pt = compassPoint(60, 60, rim, deg);
+          const isActive = label === fromLabel || label === toLabel;
           return (
             <text
-              key={d}
-              x={x}
-              y={y}
+              key={label}
+              x={pt.x}
+              y={pt.y}
               textAnchor="middle"
               dominantBaseline="middle"
-              className="fill-slate-400 text-[9px] font-bold"
+              className={cn(
+                labelSize,
+                "font-bold",
+                isActive ? "fill-primary" : "fill-slate-400"
+              )}
             >
-              {d}
+              {label}
             </text>
           );
         })}
-        <g transform={`rotate(${direction} 60 60)`}>
-          <polygon points="60,18 55,62 60,56 65,62" fill="#2563eb" />
-        </g>
-        <circle cx="60" cy="60" r="5" fill="#2563eb" />
+
+        {/* Staart (wind vandaan) */}
+        <circle cx={fromPt.x} cy={fromPt.y} r={size === "sm" ? 2.5 : 4} fill={qualityColors.arrow} opacity={0.45} />
+
+        {/* Pijl: van herkomst naar blaasrichting */}
+        <line
+          x1={fromPt.x}
+          y1={fromPt.y}
+          x2={toPt.x}
+          y2={toPt.y}
+          stroke={qualityColors.arrow}
+          strokeWidth={size === "sm" ? 2.5 : prominent ? 4 : 3.5}
+          strokeLinecap="round"
+          markerEnd={`url(#wind-arrowhead-${markerId})`}
+        />
+
+        <circle cx="60" cy="60" r={size === "sm" ? 3 : 5} fill={qualityColors.arrow} />
       </svg>
-      {size === "lg" && (
-        <p className="text-center mt-1">
-          <span className="text-lg font-bold text-slate-800">{label}</span>
-          <span className="text-sm text-slate-500 ml-2">{Math.round(direction)}°</span>
-        </p>
+
+      {(size === "lg" || size === "xl" || prominent) && (
+        <div className="text-center mt-2 min-w-0 w-full px-1">
+          <p className="text-sm sm:text-base font-bold text-slate-800">
+            {UI.windFrom} {fromLabel}
+            <span className="text-slate-400 font-normal mx-1">→</span>
+            {toLabel}
+          </p>
+          <p className="text-xs text-slate-500 tabular-nums">{Math.round(fromDeg)}° · {UI.windTo} {Math.round(toDeg)}°</p>
+        </div>
+      )}
+
+      {prominent && offshore && (
+        <div className="mt-2 w-full rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-center">
+          <p className="text-xs font-bold text-red-700 uppercase tracking-wide">{UI.offshoreWind}</p>
+          <p className="text-[11px] text-red-600 mt-0.5">{UI.offshoreHint}</p>
+        </div>
+      )}
+
+      {prominent && !offshore && quality === "side-onshore" && (
+        <p className="mt-2 text-xs font-semibold text-emerald-700">{UI.sideOnshoreWind}</p>
       )}
     </div>
   );
 }
 
 export function DirectionLabel({ direction, compact }: { direction: number; compact?: boolean }) {
-  const dirs = ["N", "NNO", "NO", "ONO", "O", "OZO", "ZO", "ZZO", "Z", "ZZW", "ZW", "WZW", "W", "WNW", "NW", "NNW"];
-  const idx = Math.round(((direction % 360) + 360) % 360 / 22.5) % 16;
+  const dirs = DIRECTION_LABELS;
+  const idx = Math.round(normalizeWindFromDeg(direction) / 22.5) % 16;
   if (compact) {
     return (
       <span className="text-sm font-semibold text-slate-800">
@@ -148,17 +264,22 @@ export function DirectionLabel({ direction, compact }: { direction: number; comp
   }
   return (
     <span className="font-semibold text-slate-800">
-      {dirs[idx]} <span className="text-muted-foreground font-normal">{Math.round(direction)}°</span>
+      {dirs[idx]}{" "}
+      <span className="text-muted-foreground font-normal">
+        {Math.round(direction)}° ({UI.windFrom})
+      </span>
     </span>
   );
 }
 
+/** Pijl in blaasrichting (waar wind naartoe waait) */
 export function DirectionArrow({ degrees }: { degrees: number }) {
   return (
     <span
       className="inline-block text-primary font-bold"
-      style={{ transform: `rotate(${degrees}deg)` }}
+      style={{ transform: `rotate(${windToDeg(degrees)}deg)` }}
       aria-hidden
+      title={`${UI.windTo} ${DIRECTION_LABELS[Math.round(windToDeg(degrees) / 22.5) % 16]}`}
     >
       ↑
     </span>

@@ -70,6 +70,41 @@ export function directionLabel(degrees: number): string {
   return `${Math.round(degrees)}° ${directionToCompass(degrees)}`;
 }
 
+/** Meteorologische windrichting (0-360): waar de wind vandaan komt */
+export function normalizeWindFromDeg(degrees: number): number {
+  return ((degrees % 360) + 360) % 360;
+}
+
+/** Waar de wind naartoe waait (tegenover van vandaan) */
+export function windToDeg(fromDeg: number): number {
+  return (normalizeWindFromDeg(fromDeg) + 180) % 360;
+}
+
+/** Aflandige wind voor IJmuiden kust (wind uit oostelijke sector) */
+export function isOffshoreWind(fromDeg: number): boolean {
+  const d = normalizeWindFromDeg(fromDeg);
+  return d >= 45 && d < 135;
+}
+
+export type WindDirectionQuality = "offshore" | "onshore" | "side-onshore" | "side-shore";
+
+export function classifyWindDirectionQuality(fromDeg: number): WindDirectionQuality {
+  const d = normalizeWindFromDeg(fromDeg);
+  if (d >= 45 && d < 135) return "offshore";
+  if (d >= 135 && d < 225) return "onshore";
+  if (d >= 225 && d < 315) return "side-onshore";
+  return "side-shore";
+}
+
+/** Punt op windroos (noord boven, meteo-graden met de klok mee) */
+export function compassPoint(cx: number, cy: number, radius: number, fromDeg: number) {
+  const rad = (normalizeWindFromDeg(fromDeg) * Math.PI) / 180;
+  return {
+    x: cx + radius * Math.sin(rad),
+    y: cy - radius * Math.cos(rad),
+  };
+}
+
 /** Circular mean for wind direction in degrees */
 export function circularMeanDirection(degrees: number[]): number {
   if (degrees.length === 0) return 0;
