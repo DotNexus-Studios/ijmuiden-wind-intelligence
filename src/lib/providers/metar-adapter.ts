@@ -2,6 +2,7 @@ import { TARGET_LOCATION } from "@/lib/config/location";
 import { prepareObservation } from "@/lib/fusion/engine";
 import { haversineKm } from "@/lib/fusion/weights";
 import type { WindObservation, WindProvider } from "@/lib/providers/types";
+import { parseMetarObservationTime } from "@/lib/providers/time";
 
 interface MetarStation {
   id: string;
@@ -11,8 +12,8 @@ interface MetarStation {
 }
 
 const METAR_STATIONS: MetarStation[] = [
-  { id: "EHAM", name: "METAR Schiphol", lat: 52.3086, lon: 4.7639 },
-  { id: "EHKD", name: "METAR Den Helder", lat: 52.9234, lon: 4.781 },
+  { id: "EHAM", name: "Schiphol", lat: 52.3086, lon: 4.7639 },
+  { id: "EHKD", name: "Den Helder", lat: 52.9234, lon: 4.781 },
 ];
 
 interface MetarRow {
@@ -20,7 +21,8 @@ interface MetarRow {
   wspd: number | null;
   wdir: number | null;
   gust: number | null;
-  obsTime: string;
+  obsTime?: number;
+  reportTime?: string;
 }
 
 function knotsToMs(knots: number): number {
@@ -44,8 +46,8 @@ export const metarProvider: WindProvider = {
           const station = METAR_STATIONS.find((s) => s.id === row.icaoId);
           if (!station || row.wspd == null || row.wdir == null) return null;
 
-          const timestamp = new Date(row.obsTime).toISOString();
-          const ageMinutes = Math.max(0, (Date.now() - new Date(timestamp).getTime()) / 60_000);
+          const parsed = parseMetarObservationTime(row);
+          if (!parsed) return null;
 
           return prepareObservation({
             id: `metar-${row.icaoId}`,
@@ -64,8 +66,8 @@ export const metarProvider: WindProvider = {
             speedMs: knotsToMs(row.wspd),
             gustMs: row.gust != null ? knotsToMs(row.gust) : null,
             directionDeg: row.wdir,
-            timestamp,
-            ageMinutes,
+            timestamp: parsed.timestamp,
+            ageMinutes: parsed.ageMinutes,
           });
         })
         .filter((o): o is WindObservation => o != null);

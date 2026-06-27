@@ -1,4 +1,5 @@
 import { knotsToMs } from "@/lib/units/wind";
+import { isAcceptableObservationTime } from "@/lib/providers/time";
 import type { WindObservation } from "@/lib/fusion/types";
 
 const MAX_WIND_MS = 50;
@@ -24,8 +25,7 @@ export function assessSensorHealth(obs: WindObservation): SensorHealthResult {
     return { score: 0, valid: false, reason: "Ongeldige timestamp" };
   }
 
-  const futureMs = ts - Date.now();
-  if (futureMs > 5 * 60_000) {
+  if (!isAcceptableObservationTime(ts)) {
     return { score: 0, valid: false, reason: "Timestamp in de toekomst" };
   }
 
