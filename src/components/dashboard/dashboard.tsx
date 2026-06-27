@@ -1,14 +1,15 @@
 "use client";
 
-import { HeroCard, StationCompassCard } from "@/components/dashboard/hero-card";
+import { CurrentConditionsCard, StationInfoCard } from "@/components/dashboard/hero-card";
 import {
-  ForecastTimeline,
-  ModelComparisonChart,
+  ForecastOverviewCard,
+  ModelComparisonTable,
   WindGustsChart,
+  ForecastFusedChart,
 } from "@/components/dashboard/forecast-charts";
 import {
   KiteCalculator,
-  SafetyDetails,
+  SafetyCheck,
   StationDetails,
   DataSourcesPanel,
   DebugDrawer,
@@ -58,24 +59,36 @@ export function Dashboard() {
     <>
       <div className="pb-28 space-y-4">
         <div className="grid xl:grid-cols-2 gap-4">
-          <HeroCard data={data} newMeasurement={newMeasurement} />
-          <ForecastTimeline data={data} />
+          <CurrentConditionsCard data={data} newMeasurement={newMeasurement} />
+          <ForecastOverviewCard data={data} />
         </div>
 
         <div className="grid lg:grid-cols-2 gap-4">
           <WindGustsChart data={data} />
-          <ModelComparisonChart data={data} />
+          <ModelComparisonTable data={data} />
         </div>
 
         <div className="grid lg:grid-cols-2 gap-4">
+          <ForecastFusedChart data={data} />
           <KiteCalculator data={data} weight={weight} onWeightChange={setWeight} />
-          <StationCompassCard data={data} />
         </div>
 
-        <SafetyDetails data={data} />
-        <StationDetails data={data} />
-        <DataSourcesPanel data={data} />
-        <DebugDrawer data={data} />
+        <div className="grid lg:grid-cols-2 gap-4">
+          <StationInfoCard data={data} />
+          <SafetyCheck data={data} />
+        </div>
+
+        <details className="group">
+          <summary className="cursor-pointer text-xs text-slate-400 hover:text-slate-600 py-2 list-none flex items-center gap-1">
+            <span className="group-open:rotate-90 transition-transform inline-block">›</span>
+            Technische details & debug
+          </summary>
+          <div className="space-y-3 pt-2">
+            <StationDetails data={data} />
+            <DataSourcesPanel data={data} />
+            <DebugDrawer data={data} />
+          </div>
+        </details>
       </div>
 
       <StickyDecisionBar data={data} onRefresh={refresh} loading={loading || polling} />

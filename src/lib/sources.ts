@@ -1,5 +1,5 @@
 import { IJMUIDEN } from "@/lib/constants";
-import { rwsClient } from "@/lib/rws/client";
+import { rwsClient, rwsErrorMessage } from "@/lib/rws/client";
 import { IJMUIDEN_STATIONS } from "@/lib/rws/stations";
 import { msToKnots } from "@/lib/units/wind";
 import { ALL_MODEL_ADAPTERS } from "@/lib/weather-models/open-meteo-base";
@@ -70,7 +70,7 @@ export async function checkAllSources(): Promise<SourceCheckResult[]> {
           type: "rws",
           ok: false,
           latencyMs: Date.now() - t0,
-          error: err instanceof Error ? err.message : "Onbekende fout",
+          error: err instanceof Error ? err.message : rwsErrorMessage(err),
         });
       }
     })

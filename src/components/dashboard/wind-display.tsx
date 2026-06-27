@@ -20,7 +20,14 @@ interface StatusBadgeProps {
 export function StatusBadge({ status, size = "lg", className }: StatusBadgeProps) {
   if (size === "hero") {
     return (
-      <span className={cn("font-bold tracking-tight leading-none", STATUS_TEXT[status], "text-6xl sm:text-7xl", className)}>
+      <span
+        className={cn(
+          "font-bold tracking-tight leading-none",
+          STATUS_TEXT[status],
+          "text-6xl sm:text-7xl lg:text-8xl",
+          className
+        )}
+      >
         {STATUS_LABELS[status]}
       </span>
     );
@@ -36,9 +43,9 @@ export function StatusBadge({ status, size = "lg", className }: StatusBadgeProps
   return (
     <span
       className={cn(
-        "inline-flex items-center justify-center font-bold tracking-tight rounded-lg border",
+        "inline-flex items-center justify-center font-bold tracking-tight rounded-md border",
         styles[status],
-        size === "lg" ? "text-xl px-3 py-1.5" : "text-xs px-2 py-0.5",
+        size === "lg" ? "text-sm px-2.5 py-1" : "text-[10px] px-1.5 py-0.5",
         className
       )}
     >
@@ -58,7 +65,7 @@ export function FreshnessDot({ level }: { level: "green" | "orange" | "red" }) {
 
 export function LiveBadge() {
   return (
-    <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 px-2.5 py-0.5 text-xs font-semibold uppercase tracking-wide">
+    <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide">
       <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
       Live
     </span>
@@ -67,47 +74,93 @@ export function LiveBadge() {
 
 export function TrendArrow({ trend }: { trend: "rising" | "stable" | "dropping" }) {
   const icons = { rising: "↗", stable: "→", dropping: "↘" };
-  const colors = { rising: "text-emerald-600", stable: "text-slate-600", dropping: "text-amber-600" };
+  const colors = {
+    rising: "text-emerald-600",
+    stable: "text-emerald-600",
+    dropping: "text-amber-600",
+  };
+  const labels = {
+    rising: TREND_LABELS.rising,
+    stable: TREND_LABELS.stable,
+    dropping: TREND_LABELS.dropping,
+  };
   return (
-    <span className={cn("inline-flex items-center gap-1 text-sm font-medium", colors[trend])}>
-      <span className="text-base">{icons[trend]}</span>
-      {TREND_LABELS[trend]}
+    <span className={cn("inline-flex items-center gap-1 text-sm font-semibold", colors[trend])}>
+      <span>{icons[trend]}</span>
+      {labels[trend]}
     </span>
   );
 }
 
 export function WindCompass({ direction, size = "md" }: { direction: number; size?: "sm" | "md" | "lg" }) {
-  const dim = size === "lg" ? "w-32 h-32" : size === "sm" ? "w-14 h-14" : "w-20 h-20";
+  const dim = size === "lg" ? "w-36 h-36" : size === "sm" ? "w-12 h-12" : "w-24 h-24";
+  const dirs = ["N", "NO", "O", "ZO", "Z", "ZW", "W", "NW"];
+  const idx = Math.round(((direction % 360) + 360) % 360 / 45) % 8;
+  const label = dirs[idx];
+
   return (
-    <div className={cn("relative mx-auto", dim)}>
-      <svg viewBox="0 0 100 100" className="w-full h-full">
-        <circle cx="50" cy="50" r="44" fill="#f8fafc" stroke="#e2e8f0" strokeWidth="2" />
-        {["N", "O", "Z", "W"].map((label, i) => {
+    <div className={cn("relative mx-auto flex flex-col items-center", dim)}>
+      <svg viewBox="0 0 120 120" className="w-full h-full">
+        <circle cx="60" cy="60" r="52" fill="#f8fafc" stroke="#e2e8f0" strokeWidth="2" />
+        <circle cx="60" cy="60" r="42" fill="none" stroke="#e2e8f0" strokeWidth="1" strokeDasharray="4 4" />
+        {["N", "O", "Z", "W"].map((d, i) => {
           const angle = i * 90 - 90;
           const rad = (angle * Math.PI) / 180;
-          const x = 50 + Math.cos(rad) * 36;
-          const y = 50 + Math.sin(rad) * 36;
+          const x = 60 + Math.cos(rad) * 46;
+          const y = 60 + Math.sin(rad) * 46;
           return (
-            <text key={label} x={x} y={y} textAnchor="middle" dominantBaseline="middle" className="fill-slate-400 text-[9px] font-semibold">
-              {label}
+            <text
+              key={d}
+              x={x}
+              y={y}
+              textAnchor="middle"
+              dominantBaseline="middle"
+              className="fill-slate-400 text-[9px] font-bold"
+            >
+              {d}
             </text>
           );
         })}
-        <g transform={`rotate(${direction} 50 50)`}>
-          <polygon points="50,14 46,54 50,48 54,54" fill="#2563eb" />
+        <g transform={`rotate(${direction} 60 60)`}>
+          <polygon points="60,18 55,62 60,56 65,62" fill="#2563eb" />
         </g>
-        <circle cx="50" cy="50" r="4" fill="#2563eb" />
+        <circle cx="60" cy="60" r="5" fill="#2563eb" />
       </svg>
+      {size === "lg" && (
+        <p className="text-center mt-1">
+          <span className="text-lg font-bold text-slate-800">{label}</span>
+          <span className="text-sm text-slate-500 ml-2">{Math.round(direction)}°</span>
+        </p>
+      )}
     </div>
   );
 }
 
-export function DirectionLabel({ direction }: { direction: number }) {
+export function DirectionLabel({ direction, compact }: { direction: number; compact?: boolean }) {
   const dirs = ["N", "NNO", "NO", "ONO", "O", "OZO", "ZO", "ZZO", "Z", "ZZW", "ZW", "WZW", "W", "WNW", "NW", "NNW"];
   const idx = Math.round(((direction % 360) + 360) % 360 / 22.5) % 16;
+  if (compact) {
+    return (
+      <span className="text-sm font-semibold text-slate-800">
+        {dirs[idx]} {Math.round(direction)}°
+      </span>
+    );
+  }
   return (
     <span className="font-semibold text-slate-800">
       {dirs[idx]} <span className="text-muted-foreground font-normal">{Math.round(direction)}°</span>
+    </span>
+  );
+}
+
+export function DirectionArrow({ degrees }: { degrees: number }) {
+  return (
+    <span
+      className="inline-block text-primary font-bold"
+      style={{ transform: `rotate(${degrees}deg)` }}
+      aria-hidden
+    >
+      ↑
     </span>
   );
 }
