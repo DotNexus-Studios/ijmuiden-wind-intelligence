@@ -2,7 +2,7 @@ import { TARGET_LOCATION } from "@/lib/config/location";
 import { prepareObservation } from "@/lib/fusion/engine";
 import { haversineKm } from "@/lib/fusion/weights";
 import type { WindObservation, WindProvider } from "@/lib/providers/types";
-import { observationAgeMinutes, rwsClient } from "@/lib/rws/client";
+import { mergeObservationBundles, observationAgeMinutes, rwsClient } from "@/lib/rws/client";
 import { IJMUIDEN_STATIONS } from "@/lib/rws/stations";
 
 function rwsToObservation(
@@ -41,25 +41,27 @@ export const rwsProvider: WindProvider = {
   label: "Rijkswaterstaat",
   async getWindObservations(): Promise<WindObservation[]> {
     const codes = IJMUIDEN_STATIONS.map((s) => s.code);
-    try {
-      const batch = await rwsClient.fetchLatestWindBatch(codes, { timeoutMs: 12_000 });
-      return IJMUIDEN_STATIONS.map((station) =>
-        rwsToObservation(station, rwsClient.parseLatestBatchForStation(batch, station.code))
-      ).filter((o): o is WindObservation => o != null);
-    } catch {
-      const results = await Promise.all(
-        IJMUIDEN_STATIONS.map(async (station) => {
-          try {
-            const { latest } = await rwsClient.fetchWindBundle(station.code, 1, {
-              timeoutMs: 8_000,
-            });
-            return rwsToObservation(station, latest);
-          } catch {
-            return null;
-          }
-        })
-      );
-      return results.filter((o): o is WindObservation => o != null);
-    }
+    const batchPromise = rwsClient
+      .fetchLatestWindBatch(codes, { timeoutMs: 12_000 })
+      .catch(() => null);
+
+    const results = await Promise.all(
+      IJMUIDEN_STATIONS.map(async (station) => {
+        const [batch, historyBundle] = await Promise.all([
+          batchPromise,
+          rwsClient.fetchWindBundle(station.code, 6, { timeoutMs: 10_000 }).catch(() => null),
+        ]);
+
+        const fromBatch = batch
+          ? rwsClient.parseLatestBatchForStation(batch, station.code)
+          : {};
+        const fromHistory = historyBundle?.latest ?? {};
+        const merged = mergeObservationBundles(fromBatch, fromHistory);
+
+        return rwsToObservation(station, merged);
+      })
+    );
+
+    return results.filter((o): o is WindObservation => o != null);
   },
 };

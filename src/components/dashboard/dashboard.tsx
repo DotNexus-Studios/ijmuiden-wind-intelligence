@@ -21,7 +21,7 @@ import {
 import { UI } from "@/lib/i18n/nl";
 import type { RiderWeight } from "@/lib/watersport/kite-size";
 import { useDashboardData } from "@/hooks/use-dashboard-data";
-import { AlertCircle, RefreshCw, Waves } from "lucide-react";
+import { AlertCircle, Waves } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { NavMenu } from "@/components/dashboard/nav-menu";
@@ -51,27 +51,15 @@ export function Dashboard() {
 
       <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
         <SportSwitcher value={sport} onChange={setSport} />
-        <div className="flex items-center gap-2 shrink-0">
-          <Button
-            variant="outline"
-            size="icon"
-            className="h-8 w-8"
-            onClick={() => refresh()}
-            disabled={loading || polling}
-            aria-label={UI.refresh}
-          >
-            <RefreshCw className={`h-4 w-4 ${loading || polling ? "animate-spin" : ""}`} />
-          </Button>
-          <Link
-            href="/intelligence"
-            className="text-xs font-semibold text-primary hover:underline"
-          >
-            {UI.dataIntelligence} →
-          </Link>
-        </div>
+        <Link
+          href="/intelligence"
+          className="text-xs font-semibold text-primary hover:underline shrink-0"
+        >
+          {UI.dataIntelligence} →
+        </Link>
       </div>
 
-      <div className="pb-24 space-y-4 min-w-0 max-w-full">
+      <div className="pb-28 space-y-4 min-w-0 max-w-full">
         <div className="grid xl:grid-cols-2 gap-4 min-w-0">
           {data ? (
             <CurrentConditionsCard
@@ -109,7 +97,13 @@ export function Dashboard() {
       </div>
 
       {data ? (
-        <StickyDecisionBar data={data} sport={sport} riderWeight={weight} />
+        <StickyDecisionBar
+          data={data}
+          sport={sport}
+          riderWeight={weight}
+          onRefresh={() => refresh()}
+          loading={loading || polling}
+        />
       ) : (
         <StickyBarSkeleton />
       )}

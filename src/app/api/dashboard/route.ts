@@ -3,7 +3,6 @@ import { getDashboardData } from "@/lib/dashboard";
 import type { RiderWeight } from "@/lib/watersport/kite-size";
 
 export const dynamic = "force-dynamic";
-export const revalidate = 300;
 
 export async function GET(request: Request) {
   try {
@@ -15,7 +14,7 @@ export async function GET(request: Request) {
     const data = await getDashboardData(riderWeight);
     return NextResponse.json(data, {
       headers: {
-        "Cache-Control": "public, s-maxage=300, stale-while-revalidate=60",
+        "Cache-Control": "no-store",
       },
     });
   } catch (err) {

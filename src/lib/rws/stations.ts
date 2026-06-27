@@ -1,5 +1,6 @@
 import { TARGET_LOCATION } from "@/lib/config/location";
 import {
+  mergeObservationBundles,
   observationAgeMinutes,
   rwsClient,
   rwsErrorMessage,
@@ -108,25 +109,27 @@ export async function discoverAndFetchStations(
     readings = await Promise.all(
       IJMUIDEN_STATIONS.map(async (station) => {
         const existing = readings.find((r) => r.station.code === station.code);
-        if (existing?.available) return existing;
+        const batchLatest = existing?.latest ?? {};
 
         try {
-          const { latest, history } = await rwsClient.fetchWindBundle(station.code, 6, {
+          const { latest: historyLatest, history } = await rwsClient.fetchWindBundle(station.code, 6, {
             timeoutMs: perStationTimeout,
           });
+          const merged = mergeObservationBundles(batchLatest, historyLatest);
           return {
             station,
             distanceKm: haversineKm(TARGET_LOCATION.latitude, TARGET_LOCATION.longitude, station.lat, station.lon),
-            latest,
+            latest: merged,
             history: history.speed.map((s) => ({ value: s.value, timestamp: s.timestamp })),
-            ageMinutes: observationAgeMinutes(latest.speed),
-            available: latest.speed != null,
+            ageMinutes: observationAgeMinutes(merged.speed),
+            available: merged.speed != null,
           } satisfies StationReading;
         } catch (err) {
+          if (existing?.available) return existing;
           return {
             station,
             distanceKm: haversineKm(TARGET_LOCATION.latitude, TARGET_LOCATION.longitude, station.lat, station.lon),
-            latest: existing?.latest ?? {},
+            latest: batchLatest,
             history: existing?.history ?? [],
             ageMinutes: existing?.ageMinutes ?? null,
             available: existing?.available ?? false,

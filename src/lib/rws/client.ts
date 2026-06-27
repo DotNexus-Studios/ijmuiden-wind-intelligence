@@ -86,7 +86,7 @@ async function rwsPost<T>(
         },
         body: JSON.stringify(body),
         signal: options.signal ?? controller.signal,
-        next: { revalidate: 300 },
+        cache: "no-store",
       });
 
       if (res.status === 204) {
@@ -227,11 +227,39 @@ const BATCH_WIND_METADATA = [
   buildWindMetadata("WINDRTG"),
 ] as const;
 
+/** Ignore corrupt or archival rows that OphalenLaatsteWaarnemingen sometimes returns. */
+const PLAUSIBLE_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
+
+function isPlausibleTijdstip(tijdstip: string): boolean {
+  const t = new Date(tijdstip).getTime();
+  if (Number.isNaN(t)) return false;
+  const ageMs = Date.now() - t;
+  return ageMs >= 0 && ageMs <= PLAUSIBLE_MAX_AGE_MS;
+}
+
+function pickNewestObservation(a?: RwsObservation, b?: RwsObservation): RwsObservation | undefined {
+  if (!a) return b;
+  if (!b) return a;
+  return new Date(a.timestamp).getTime() >= new Date(b.timestamp).getTime() ? a : b;
+}
+
+export function mergeObservationBundles(
+  a: RwsObservationBundle,
+  b: RwsObservationBundle
+): RwsObservationBundle {
+  return {
+    speed: pickNewestObservation(a.speed, b.speed),
+    gust: pickNewestObservation(a.gust, b.gust),
+    direction: pickNewestObservation(a.direction, b.direction),
+  };
+}
+
 function latestFromResponse(data: ObservationResponse): RwsObservation | undefined {
   const all: MetingEntry[] = [];
   for (const item of data.WaarnemingenLijst ?? []) all.push(...getMetingenList(item));
-  if (!all.length) return undefined;
-  const sorted = [...all].sort(
+  const plausible = all.filter((m) => m.Tijdstip && isPlausibleTijdstip(m.Tijdstip));
+  if (!plausible.length) return undefined;
+  const sorted = [...plausible].sort(
     (a, b) => new Date(b.Tijdstip ?? 0).getTime() - new Date(a.Tijdstip ?? 0).getTime()
   );
   const latest = sorted[0];
@@ -261,7 +289,9 @@ function pickObservationFromLatestBatch(
   for (const item of data.WaarnemingenLijst ?? []) {
     if (item.Locatie?.Code !== stationCode) continue;
     if (item.AquoMetadata?.Grootheid?.Code !== grootheid) continue;
-    const list = getMetingenList(item);
+    const list = getMetingenList(item).filter(
+      (m) => m.Tijdstip && isPlausibleTijdstip(m.Tijdstip)
+    );
     const latest = [...list].sort(
       (a, b) => new Date(b.Tijdstip ?? 0).getTime() - new Date(a.Tijdstip ?? 0).getTime()
     )[0];
