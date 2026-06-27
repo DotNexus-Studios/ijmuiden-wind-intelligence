@@ -49,77 +49,43 @@
 }
 
 :root {
-  --background: oklch(0.12 0.02 240);
-  --foreground: oklch(0.95 0.01 240);
-  --card: oklch(0.16 0.025 240);
-  --card-foreground: oklch(0.95 0.01 240);
-  --popover: oklch(0.16 0.025 240);
-  --popover-foreground: oklch(0.95 0.01 240);
-  --primary: oklch(0.75 0.12 195);
-  --primary-foreground: oklch(0.12 0.02 240);
-  --secondary: oklch(0.22 0.03 240);
-  --secondary-foreground: oklch(0.92 0.01 240);
-  --muted: oklch(0.22 0.025 240);
-  --muted-foreground: oklch(0.65 0.02 240);
-  --accent: oklch(0.25 0.04 240);
-  --accent-foreground: oklch(0.95 0.01 240);
-  --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.28 0.03 240);
-  --input: oklch(0.28 0.03 240);
-  --ring: oklch(0.55 0.1 195);
-  --chart-1: oklch(0.75 0.12 195);
-  --chart-2: oklch(0.65 0.15 280);
-  --chart-3: oklch(0.7 0.14 160);
-  --chart-4: oklch(0.72 0.16 55);
-  --chart-5: oklch(0.6 0.02 240);
-  --radius: 0.75rem;
-  --status-go: #34d399;
-  --status-wait: #fbbf24;
-  --status-expert: #f97316;
-  --status-nogo: #ef4444;
-  --accent-wind: #38bdf8;
-  --sidebar: oklch(0.14 0.02 240);
-  --sidebar-foreground: oklch(0.95 0.01 240);
-  --sidebar-primary: oklch(0.75 0.12 195);
-  --sidebar-primary-foreground: oklch(0.12 0.02 240);
-  --sidebar-accent: oklch(0.22 0.03 240);
-  --sidebar-accent-foreground: oklch(0.95 0.01 240);
-  --sidebar-border: oklch(0.28 0.03 240);
-  --sidebar-ring: oklch(0.55 0.1 195);
-}
-
-.dark {
-  --background: oklch(0.12 0.02 240);
-  --foreground: oklch(0.95 0.01 240);
-  --card: oklch(0.16 0.025 240);
-  --card-foreground: oklch(0.95 0.01 240);
-  --popover: oklch(0.16 0.025 240);
-  --popover-foreground: oklch(0.95 0.01 240);
-  --primary: oklch(0.75 0.12 195);
-  --primary-foreground: oklch(0.12 0.02 240);
-  --secondary: oklch(0.22 0.03 240);
-  --secondary-foreground: oklch(0.92 0.01 240);
-  --muted: oklch(0.22 0.025 240);
-  --muted-foreground: oklch(0.65 0.02 240);
-  --accent: oklch(0.25 0.04 240);
-  --accent-foreground: oklch(0.95 0.01 240);
-  --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(0.28 0.03 240);
-  --input: oklch(0.28 0.03 240);
-  --ring: oklch(0.55 0.1 195);
-  --chart-1: oklch(0.75 0.12 195);
-  --chart-2: oklch(0.65 0.15 280);
-  --chart-3: oklch(0.7 0.14 160);
-  --chart-4: oklch(0.72 0.16 55);
-  --chart-5: oklch(0.6 0.02 240);
-  --sidebar: oklch(0.14 0.02 240);
-  --sidebar-foreground: oklch(0.95 0.01 240);
-  --sidebar-primary: oklch(0.75 0.12 195);
-  --sidebar-primary-foreground: oklch(0.12 0.02 240);
-  --sidebar-accent: oklch(0.22 0.03 240);
-  --sidebar-accent-foreground: oklch(0.95 0.01 240);
-  --sidebar-border: oklch(0.28 0.03 240);
-  --sidebar-ring: oklch(0.55 0.1 195);
+  --background: #eef2f7;
+  --foreground: #0f172a;
+  --card: #ffffff;
+  --card-foreground: #0f172a;
+  --popover: #ffffff;
+  --popover-foreground: #0f172a;
+  --primary: #2563eb;
+  --primary-foreground: #ffffff;
+  --secondary: #f1f5f9;
+  --secondary-foreground: #334155;
+  --muted: #f1f5f9;
+  --muted-foreground: #64748b;
+  --accent: #eff6ff;
+  --accent-foreground: #1d4ed8;
+  --destructive: #dc2626;
+  --border: #e2e8f0;
+  --input: #e2e8f0;
+  --ring: #93c5fd;
+  --chart-1: #2563eb;
+  --chart-2: #7c3aed;
+  --chart-3: #059669;
+  --chart-4: #d97706;
+  --chart-5: #64748b;
+  --radius: 0.875rem;
+  --status-go: #16a34a;
+  --status-wait: #d97706;
+  --status-expert: #ea580c;
+  --status-nogo: #dc2626;
+  --accent-wind: #2563eb;
+  --sidebar: #ffffff;
+  --sidebar-foreground: #0f172a;
+  --sidebar-primary: #2563eb;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #f1f5f9;
+  --sidebar-accent-foreground: #0f172a;
+  --sidebar-border: #e2e8f0;
+  --sidebar-ring: #93c5fd;
 }
 
 @layer base {
@@ -140,3 +106,12 @@
 .safe-bottom {
   padding-bottom: env(safe-area-inset-bottom, 0px);
 }
+
+.dashboard-card {
+  @apply bg-card border border-border/80 shadow-sm rounded-2xl;
+}
+
+.status-go-text { color: var(--status-go); }
+.status-wait-text { color: var(--status-wait); }
+.status-nogo-text { color: var(--status-nogo); }
+.status-expert-text { color: var(--status-expert); }

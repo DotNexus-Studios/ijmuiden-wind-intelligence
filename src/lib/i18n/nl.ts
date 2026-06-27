@@ -20,36 +20,41 @@ export const WEIGHT_LABELS = {
   heavy: "Zwaar",
 } as const;
 
-export const FRESHNESS_LABELS = {
-  green: "Vers (<10 min)",
-  orange: "Matig (10-30 min)",
-  red: "Verouderd (>30 min)",
-} as const;
-
 export const UI = {
   appTitle: "IJmuiden Wind Intelligence",
   appSubtitle: "RWS live · Multi-model voorspelling",
+  navDashboard: "Dashboard",
+  navForecast: "Voorspelling",
+  navTools: "Tools",
+  navStations: "Stations",
+  currentConditions: "Huidige omstandigheden",
+  live: "Live",
   instantDecision: "Directe beslissing",
   confidence: "Betrouwbaarheid",
   wind: "Wind",
   gusts: "Windvlagen",
   noLiveData: "Geen live data",
   synced: "Gesynchroniseerd",
+  lastUpdate: "Laatste update",
   updated: "Bijgewerkt",
   minutesAgo: "min geleden",
+  newMeasurement: "Nieuwe meting ontvangen",
   liveWind: "Live wind",
   average: "Gemiddeld",
   direction: "Richting",
   trend: "Trend",
   fallbackStation: "fallback-station",
-  forecastTimeline: "Voorspelling",
+  forecastTimeline: "Voorspellingsoverzicht",
+  moreDetail: "Meer detail",
   modelComparison: "Modelvergelijking",
   fused: "Gecombineerd",
-  kiteSize: "Kitegrootte",
+  windGusts: "Wind & vlagen",
+  forecastFused: "Voorspelling (gecombineerd)",
+  kiteSize: "Kitegrootte calculator",
   range: "Bereik",
-  safetyDetails: "Veiligheid",
+  safetyDetails: "Veiligheidscheck",
   confidenceFactors: "Betrouwbaarheidsfactoren",
-  stationDetails: "Meetstations",
+  stationDetails: "Stationinfo",
   online: "Online",
   offline: "Offline",
   rawDebug: "Ruwe data / debug",
@@ -57,18 +62,27 @@ export const UI = {
   tryAgain: "Opnieuw proberen",
   refresh: "Vernieuwen",
   kite: "Kite",
+  tomorrow: "Morgen",
+  safeToGo: "Veilig om te gaan",
 } as const;
 
 export function formatTimelineLabel(label: string): string {
   const map: Record<string, string> = {
-    Now: "Nu",
-    "+1h": "+1u",
-    "+3h": "+3u",
-    "+6h": "+6u",
-    "+12h": "+12u",
-    "+24h": "+24u",
-    "+48h": "+48u",
+    Nu: "NU",
+    "+1u": "+1U",
+    "+3u": "+3U",
+    "+6u": "+6U",
+    "+12u": "+12U",
+    "+24u": "+24U",
+    "+48u": "+48U",
   };
   if (map[label]) return map[label];
-  return label.replace(/h$/, "u");
+  return label.replace(/u$/, "U").toUpperCase();
+}
+
+export function formatObservationClock(iso: string): string {
+  return new Date(iso).toLocaleTimeString("nl-NL", {
+    hour: "2-digit",
+    minute: "2-digit",
+  });
 }

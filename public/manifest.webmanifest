@@ -4,8 +4,8 @@
   "description": "Wind and water-sport decision dashboard for IJmuiden",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#071018",
-  "theme_color": "#071018",
+  "background_color": "#eef2f7",
+  "theme_color": "#eef2f7",
   "orientation": "portrait-primary",
   "icons": [
     {

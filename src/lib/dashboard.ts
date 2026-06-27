@@ -12,6 +12,8 @@ import { checkAllSources, type SourceCheckResult } from "@/lib/sources";
 
 export interface DashboardData {
   syncedAt: string;
+  /** Tijdstip van de RWS-meting zelf */
+  observationTimestamp: string | null;
   error?: string;
   bronnen: SourceCheckResult[];
   live: {
@@ -60,6 +62,7 @@ export async function getDashboardData(riderWeight: RiderWeight = "medium"): Pro
   let gustMs = primary?.latest.gust?.value ?? speedMs * 1.25;
   let directionDeg = primary?.latest.direction?.value ?? 270;
   const ageMinutes = primary?.ageMinutes ?? null;
+  const observationTimestamp = primary?.latest.speed?.timestamp ?? null;
 
   const historyData = primary?.history ?? [];
   attachObservationHistory(models, historyData);
@@ -118,6 +121,7 @@ export async function getDashboardData(riderWeight: RiderWeight = "medium"): Pro
 
   return {
     syncedAt,
+    observationTimestamp,
     bronnen,
     live: {
       speedMs,

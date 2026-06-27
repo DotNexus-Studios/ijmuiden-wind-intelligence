@@ -1,123 +1,150 @@
 "use client";
 
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import { FreshnessDot, StatusBadge, TrendArrow, WindCompass } from "@/components/dashboard/wind-display";
+import {
+  DirectionLabel,
+  FreshnessDot,
+  LiveBadge,
+  StatusBadge,
+  TrendArrow,
+  WindCompass,
+} from "@/components/dashboard/wind-display";
 import { msToKnots } from "@/lib/units/wind";
-import { UI } from "@/lib/i18n/nl";
+import { UI, formatObservationClock } from "@/lib/i18n/nl";
 import type { DashboardData } from "@/lib/dashboard";
 import { formatDistanceToNow } from "date-fns";
 import { nl } from "date-fns/locale";
 
 interface HeroCardProps {
   data: DashboardData;
+  newMeasurement?: boolean;
 }
 
-export function HeroCard({ data }: HeroCardProps) {
+export function HeroCard({ data, newMeasurement }: HeroCardProps) {
   const { decision, live } = data;
   const gustKt = Math.round(msToKnots(live.gustMs));
+  const obsTime = data.observationTimestamp;
 
   return (
-    <Card className="border-0 bg-gradient-to-br from-card via-card to-[#0c1829] shadow-xl overflow-hidden">
-      <CardHeader className="pb-2">
-        <div className="flex items-start justify-between gap-3">
-          <div>
-            <p className="text-xs uppercase tracking-widest text-muted-foreground mb-1">
-              {UI.instantDecision}
+    <section className="dashboard-card p-5 sm:p-6">
+      <div className="flex items-start justify-between gap-3 mb-4">
+        <div>
+          <div className="flex items-center gap-2 mb-1">
+            <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+              {UI.currentConditions}
             </p>
-            <StatusBadge status={decision.status} />
+            <LiveBadge />
           </div>
-          <div className="text-right">
-            <p className="text-xs text-muted-foreground">{UI.confidence}</p>
-            <p className="text-3xl font-bold tabular-nums">{decision.confidence}</p>
-            <Progress value={decision.confidence} className="h-1.5 mt-1 w-20 ml-auto" />
-          </div>
+          {live.station && (
+            <p className="text-sm text-muted-foreground">RWS {live.station.station.name}</p>
+          )}
         </div>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        <div className="grid grid-cols-3 gap-3">
+        {newMeasurement && (
+          <Badge className="bg-emerald-100 text-emerald-800 border-emerald-200 hover:bg-emerald-100">
+            {UI.newMeasurement}
+          </Badge>
+        )}
+      </div>
+
+      <div className="grid lg:grid-cols-[1fr_auto] gap-6 items-start">
+        <div>
+          <StatusBadge status={decision.status} size="hero" />
+          <div className="mt-4 max-w-xs">
+            <div className="flex justify-between text-sm mb-1">
+              <span className="text-muted-foreground">{UI.confidence}</span>
+              <span className="font-semibold text-emerald-600">{decision.confidence}%</span>
+            </div>
+            <Progress value={decision.confidence} className="h-2 bg-slate-100 [&>div]:bg-emerald-500" />
+          </div>
+          <p className="text-sm text-muted-foreground mt-4 leading-relaxed max-w-lg">{decision.explanation}</p>
+        </div>
+
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 lg:gap-6">
+          <Metric label={UI.wind} value={`${live.formatted.knots} kn`} sub={`${live.formatted.ms} m/s`} />
+          <Metric label={UI.gusts} value={`${gustKt} kn`} sub={`${Math.round(live.gustMs * 3.6)} km/u`} />
           <div>
-            <p className="text-xs text-muted-foreground">{UI.wind}</p>
-            <p className="text-4xl font-bold tabular-nums leading-none">
-              {live.formatted.knots}
-              <span className="text-lg font-normal text-muted-foreground ml-1">kn</span>
-            </p>
-            <p className="text-xs text-muted-foreground mt-1">
-              {live.formatted.ms} m/s · Bft {live.formatted.beaufort}
-            </p>
+            <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground mb-1">{UI.direction}</p>
+            <DirectionLabel direction={live.directionDeg} />
+            <div className="mt-2 scale-75 origin-left">
+              <WindCompass direction={live.directionDeg} size="sm" />
+            </div>
           </div>
           <div>
-            <p className="text-xs text-muted-foreground">{UI.gusts}</p>
-            <p className="text-3xl font-bold tabular-nums">
-              {gustKt}
-              <span className="text-base font-normal text-muted-foreground ml-1">kn</span>
-            </p>
+            <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground mb-1">{UI.trend}</p>
             <TrendArrow trend={live.trend} />
           </div>
-          <div>
-            <WindCompass direction={live.directionDeg} />
-          </div>
         </div>
+      </div>
 
-        <p className="text-sm leading-relaxed text-foreground/90">{decision.explanation}</p>
-
-        <div className="flex items-center justify-between text-xs text-muted-foreground pt-2 border-t border-border/50">
-          <div className="flex items-center gap-2">
-            <FreshnessDot level={live.freshness} />
+      <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground mt-6 pt-4 border-t border-border">
+        <div className="flex items-center gap-2">
+          <FreshnessDot level={live.freshness} />
+          {obsTime ? (
             <span>
-              {live.ageMinutes != null
-                ? `${UI.updated} ${Math.round(live.ageMinutes)} ${UI.minutesAgo}`
-                : UI.noLiveData}
+              {UI.lastUpdate}: <strong className="text-foreground">{formatObservationClock(obsTime)}</strong>
+              {" · "}
+              {formatDistanceToNow(new Date(obsTime), { addSuffix: true, locale: nl })}
             </span>
-          </div>
-          <span>
-            {UI.synced}{" "}
-            {formatDistanceToNow(new Date(data.syncedAt), { addSuffix: true, locale: nl })}
-          </span>
+          ) : (
+            <span>{UI.noLiveData}</span>
+          )}
         </div>
-      </CardContent>
-    </Card>
+        <span>
+          {UI.synced}{" "}
+          {formatDistanceToNow(new Date(data.syncedAt), { addSuffix: true, locale: nl })}
+        </span>
+      </div>
+    </section>
   );
 }
 
-export function LiveWindCard({ data }: HeroCardProps) {
+function Metric({ label, value, sub }: { label: string; value: string; sub?: string }) {
+  return (
+    <div>
+      <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground mb-1">{label}</p>
+      <p className="text-2xl font-bold tabular-nums text-slate-900">{value}</p>
+      {sub && <p className="text-xs text-muted-foreground mt-0.5">{sub}</p>}
+    </div>
+  );
+}
+
+export function StationCompassCard({ data }: HeroCardProps) {
   const { live } = data;
+  const station = live.station;
 
   return (
-    <Card>
-      <CardHeader className="pb-2">
-        <CardTitle className="text-base">{UI.liveWind}</CardTitle>
-      </CardHeader>
-      <CardContent>
-        <div className="flex items-baseline gap-2">
-          <span className="text-5xl font-bold tabular-nums">{live.formatted.knots}</span>
-          <span className="text-xl text-muted-foreground">kn</span>
+    <section className="dashboard-card p-5">
+      <div className="grid sm:grid-cols-2 gap-4 items-center">
+        <WindCompass direction={live.directionDeg} size="lg" />
+        <div className="space-y-2 text-sm">
+          <p className="font-semibold">{station?.station.name ?? "IJmuiden"} (RWS)</p>
+          {station && (
+            <>
+              <Row label="Afstand" value={`${station.distanceKm.toFixed(1)} km`} />
+              <Row label="Coördinaten" value={`${station.station.lat.toFixed(4)}, ${station.station.lon.toFixed(4)}`} />
+              <Row
+                label="Data leeftijd"
+                value={
+                  live.ageMinutes != null
+                    ? `${Math.round(live.ageMinutes)} min`
+                    : "Onbekend"
+                }
+              />
+            </>
+          )}
+          <DirectionLabel direction={live.directionDeg} />
         </div>
-        <div className="grid grid-cols-2 gap-4 mt-4 text-sm">
-          <div>
-            <p className="text-muted-foreground">{UI.average}</p>
-            <p>{live.formatted.ms} m/s · Beaufort {live.formatted.beaufort}</p>
-          </div>
-          <div>
-            <p className="text-muted-foreground">{UI.gusts}</p>
-            <p>{Math.round(msToKnots(live.gustMs))} kn</p>
-          </div>
-          <div>
-            <p className="text-muted-foreground">{UI.direction}</p>
-            <p>{Math.round(live.directionDeg)}°</p>
-          </div>
-          <div>
-            <p className="text-muted-foreground">{UI.trend}</p>
-            <TrendArrow trend={live.trend} />
-          </div>
-        </div>
-        {live.station && (
-          <p className="text-xs text-muted-foreground mt-4 pt-3 border-t">
-            {live.station.station.name} · {live.station.distanceKm.toFixed(1)} km
-            {live.usedFallback && ` · ${UI.fallbackStation}`}
-          </p>
-        )}
-      </CardContent>
-    </Card>
+      </div>
+    </section>
+  );
+}
+
+function Row({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex justify-between gap-4">
+      <span className="text-muted-foreground">{label}</span>
+      <span className="font-medium">{value}</span>
+    </div>
   );
 }

@@ -2,9 +2,9 @@
 
 import { RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { StatusBadge } from "@/components/dashboard/wind-display";
+import { DirectionLabel, StatusBadge } from "@/components/dashboard/wind-display";
 import { msToKnots } from "@/lib/units/wind";
-import { UI } from "@/lib/i18n/nl";
+import { UI, formatObservationClock } from "@/lib/i18n/nl";
 import type { DashboardData } from "@/lib/dashboard";
 
 interface StickyBarProps {
@@ -17,34 +17,41 @@ export function StickyDecisionBar({ data, onRefresh, loading }: StickyBarProps) 
   const { decision, live, kite } = data;
 
   return (
-    <div className="fixed bottom-0 inset-x-0 z-50 border-t border-border/60 bg-background/95 backdrop-blur-md safe-bottom">
-      <div className="max-w-lg mx-auto px-3 py-2.5 flex items-center gap-3">
-        <StatusBadge status={decision.status} size="sm" className="shrink-0" />
-        <div className="flex-1 min-w-0 grid grid-cols-3 gap-2 text-center">
-          <div>
-            <p className="text-[10px] text-muted-foreground uppercase">{UI.wind}</p>
-            <p className="text-lg font-bold tabular-nums leading-tight">{live.formatted.knots}</p>
+    <div className="fixed bottom-0 inset-x-0 z-50 border-t border-border bg-white/95 backdrop-blur-md shadow-[0_-4px_20px_rgba(15,23,42,0.08)] safe-bottom">
+      <div className="max-w-7xl mx-auto px-3 sm:px-4 py-2.5">
+        <div className="flex items-center gap-2 sm:gap-4 overflow-x-auto">
+          <StatusBadge status={decision.status} size="sm" className="shrink-0" />
+          <BarItem label={UI.confidence} value={`${decision.confidence}%`} />
+          <BarItem label={UI.wind} value={`${live.formatted.knots} kn`} />
+          <BarItem label={UI.gusts} value={`${Math.round(msToKnots(live.gustMs))} kn`} />
+          <div className="hidden sm:block shrink-0 text-center min-w-[88px]">
+            <p className="text-[10px] text-muted-foreground uppercase">{UI.direction}</p>
+            <p className="text-sm font-semibold"><DirectionLabel direction={live.directionDeg} /></p>
           </div>
-          <div>
-            <p className="text-[10px] text-muted-foreground uppercase">{UI.gusts}</p>
-            <p className="text-lg font-bold tabular-nums leading-tight">{Math.round(msToKnots(live.gustMs))}</p>
-          </div>
-          <div>
-            <p className="text-[10px] text-muted-foreground uppercase">{UI.kite}</p>
-            <p className="text-lg font-bold leading-tight">{kite.primary}</p>
-          </div>
+          <BarItem label={UI.kite} value={kite.range} />
+          {data.observationTimestamp && (
+            <BarItem label={UI.lastUpdate} value={formatObservationClock(data.observationTimestamp)} />
+          )}
+          <Button
+            size="icon"
+            className="shrink-0 ml-auto bg-primary hover:bg-primary/90"
+            onClick={onRefresh}
+            disabled={loading}
+            aria-label={UI.refresh}
+          >
+            <RefreshCw className={`h-4 w-4 text-white ${loading ? "animate-spin" : ""}`} />
+          </Button>
         </div>
-        <Button
-          size="icon"
-          variant="outline"
-          className="shrink-0"
-          onClick={onRefresh}
-          disabled={loading}
-          aria-label={UI.refresh}
-        >
-          <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
-        </Button>
       </div>
+    </div>
+  );
+}
+
+function BarItem({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="shrink-0 text-center min-w-[64px]">
+      <p className="text-[10px] text-muted-foreground uppercase">{label}</p>
+      <p className="text-sm font-bold tabular-nums leading-tight text-slate-900">{value}</p>
     </div>
   );
 }
