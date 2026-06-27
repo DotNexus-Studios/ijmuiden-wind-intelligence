@@ -27,6 +27,7 @@ export async function GET() {
     hasLive: primary != null,
     station: primary,
     usedFallback: stations.usedFallback,
+    rwsError: stations.rwsError ?? null,
     live:
       speedMs != null
         ? {

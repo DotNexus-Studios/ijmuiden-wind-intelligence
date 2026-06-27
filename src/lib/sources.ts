@@ -38,43 +38,94 @@ function findNowPoint(
   };
 }
 
+async function checkRwsSources(): Promise<SourceCheckResult[]> {
+  const codes = IJMUIDEN_STATIONS.map((s) => s.code);
+  const t0 = Date.now();
+
+  try {
+    const batch = await rwsClient.fetchLatestWindBatch(codes, { timeoutMs: 15_000 });
+    const latencyMs = Date.now() - t0;
+    return IJMUIDEN_STATIONS.map((station) => {
+      const latest = rwsClient.parseLatestBatchForStation(batch, station.code);
+      const hasSpeed = latest.speed != null;
+      return {
+        id: station.code,
+        name: station.name,
+        type: "rws",
+        ok: hasSpeed,
+        latencyMs,
+        ...(hasSpeed
+          ? {}
+          : { error: "Geen windmeting in batch-response" }),
+        data: {
+          speedMs: latest.speed?.value,
+          speedKt: latest.speed ? Math.round(msToKnots(latest.speed.value)) : null,
+          gustMs: latest.gust?.value,
+          directionDeg: latest.direction?.value,
+          timestamp: latest.speed?.timestamp,
+          historyPoints: 0,
+        },
+      };
+    });
+  } catch (batchErr) {
+    const batchError = rwsErrorMessage(batchErr);
+    const batchLatency = Date.now() - t0;
+
+    const perStation = await Promise.all(
+      IJMUIDEN_STATIONS.map(async (station) => {
+        const stationT0 = Date.now();
+        try {
+          const { latest, history } = await rwsClient.fetchWindBundle(station.code, 6, {
+            timeoutMs: 8_000,
+          });
+          const hasSpeed = latest.speed != null;
+          return {
+            id: station.code,
+            name: station.name,
+            type: "rws",
+            ok: hasSpeed,
+            latencyMs: Date.now() - stationT0,
+            error: hasSpeed ? undefined : batchError,
+            data: {
+              speedMs: latest.speed?.value,
+              speedKt: latest.speed ? Math.round(msToKnots(latest.speed.value)) : null,
+              gustMs: latest.gust?.value,
+              directionDeg: latest.direction?.value,
+              timestamp: latest.speed?.timestamp,
+              historyPoints: history.speed.length,
+            },
+          } satisfies SourceCheckResult;
+        } catch (err) {
+          return {
+            id: station.code,
+            name: station.name,
+            type: "rws",
+            ok: false,
+            latencyMs: Date.now() - stationT0,
+            error: rwsErrorMessage(err),
+            data: {
+              speedKt: null,
+              historyPoints: 0,
+            },
+          } satisfies SourceCheckResult;
+        }
+      })
+    );
+
+    if (!perStation.some((s) => s.ok)) {
+      for (const row of perStation) {
+        row.error ??= batchError;
+        row.latencyMs = Math.max(row.latencyMs, batchLatency);
+      }
+    }
+    return perStation;
+  }
+}
+
 export async function checkAllSources(): Promise<SourceCheckResult[]> {
   const results: SourceCheckResult[] = [];
 
-  await Promise.all(
-    IJMUIDEN_STATIONS.map(async (station) => {
-      const t0 = Date.now();
-      try {
-        const { latest, history } = await rwsClient.fetchWindBundle(station.code, 6, {
-          timeoutMs: 10_000,
-        });
-        results.push({
-          id: station.code,
-          name: station.name,
-          type: "rws",
-          ok: latest.speed != null,
-          latencyMs: Date.now() - t0,
-          data: {
-            speedMs: latest.speed?.value,
-            speedKt: latest.speed ? Math.round(msToKnots(latest.speed.value)) : null,
-            gustMs: latest.gust?.value,
-            directionDeg: latest.direction?.value,
-            timestamp: latest.speed?.timestamp,
-            historyPoints: history.speed.length,
-          },
-        });
-      } catch (err) {
-        results.push({
-          id: station.code,
-          name: station.name,
-          type: "rws",
-          ok: false,
-          latencyMs: Date.now() - t0,
-          error: err instanceof Error ? err.message : rwsErrorMessage(err),
-        });
-      }
-    })
-  );
+  results.push(...(await checkRwsSources()));
 
   await Promise.all(
     ALL_MODEL_ADAPTERS.map(async (adapter) => {

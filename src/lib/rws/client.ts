@@ -296,9 +296,7 @@ export class RwsClient {
     hours = 6,
     options?: RwsRequestOptions
   ): Promise<{ latest: RwsObservationBundle; history: { speed: RwsObservation[] } }> {
-    const speedData = await this.fetchObservations(stationCode, "WINDSHD", "gemiddeld", hours, options).catch(
-      () => undefined
-    );
+    const speedData = await this.fetchObservations(stationCode, "WINDSHD", "gemiddeld", hours, options);
     let gustData: ObservationResponse | undefined;
     let dirData: ObservationResponse | undefined;
     try {
@@ -307,15 +305,15 @@ export class RwsClient {
         this.fetchObservations(stationCode, "WINDRTG", "gemiddeld", hours, options),
       ]);
     } catch {
-      // optional
+      // gust and direction are optional
     }
     return {
       latest: {
-        speed: speedData ? latestFromResponse(speedData) : undefined,
+        speed: latestFromResponse(speedData),
         gust: gustData ? latestFromResponse(gustData) : undefined,
         direction: dirData ? latestFromResponse(dirData) : undefined,
       },
-      history: { speed: speedData ? historyFromResponse(speedData) : [] },
+      history: { speed: historyFromResponse(speedData) },
     };
   }
 
