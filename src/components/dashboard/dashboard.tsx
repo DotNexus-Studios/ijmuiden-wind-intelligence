@@ -14,6 +14,7 @@ import {
   DataSourcesPanel,
   DebugDrawer,
 } from "@/components/dashboard/sections";
+import { SurfConditionsCard } from "@/components/dashboard/surf-card";
 import { StickyDecisionBar } from "@/components/dashboard/sticky-bar";
 import { LoadingBanner } from "@/components/dashboard/loading-banner";
 import {
@@ -23,6 +24,7 @@ import {
   KiteCalculatorSkeleton,
   SafetyCheckSkeleton,
   StationInfoSkeleton,
+  SurfCardSkeleton,
   StickyBarSkeleton,
   TableCardSkeleton,
 } from "@/components/dashboard/dashboard-skeletons";
@@ -76,17 +78,30 @@ export function Dashboard() {
             <ChartCardSkeleton title={UI.windGusts} />
           )}
           {hasForecast && data ? (
-            <ModelComparisonTable data={data} />
+            <ForecastFusedChart data={data} />
           ) : (
-            <TableCardSkeleton />
+            <ChartCardSkeleton title={UI.forecastFused} />
           )}
         </div>
 
         <div className="grid lg:grid-cols-2 gap-4 min-w-0">
           {hasForecast && data ? (
-            <ForecastFusedChart data={data} />
+            <ModelComparisonTable data={data} />
           ) : (
-            <ChartCardSkeleton title={UI.forecastFused} />
+            <TableCardSkeleton />
+          )}
+          {data ? (
+            <SurfConditionsCard data={data} />
+          ) : (
+            <SurfCardSkeleton />
+          )}
+        </div>
+
+        <div className="grid lg:grid-cols-2 gap-4 min-w-0">
+          {data ? (
+            <SafetyCheck data={data} />
+          ) : (
+            <SafetyCheckSkeleton />
           )}
           {data ? (
             <KiteCalculator data={data} weight={weight} onWeightChange={setWeight} />
@@ -100,11 +115,6 @@ export function Dashboard() {
             <StationInfoCard data={data} loadingLive={loading} />
           ) : (
             <StationInfoSkeleton />
-          )}
-          {data ? (
-            <SafetyCheck data={data} />
-          ) : (
-            <SafetyCheckSkeleton />
           )}
         </div>
 

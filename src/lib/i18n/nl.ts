@@ -22,7 +22,7 @@ export const WEIGHT_LABELS = {
 
 export const UI = {
   appTitle: "IJmuiden Wind Intelligence",
-  appSubtitle: "RWS live · Multi-model voorspelling",
+  appSubtitle: "RWS live · Wind & golven · Multi-model voorspelling",
   navDashboard: "Dashboard",
   navForecast: "Voorspelling",
   navTools: "Tools",
@@ -85,6 +85,20 @@ export const UI = {
   kite: "Kite",
   tomorrow: "Morgen",
   safeToGo: "Veilig om te gaan",
+  surfConditions: "Golfsurfen IJmuiden aan zee",
+  surfSpot: "IJmuiden aan zee · Open-Meteo Marine",
+  waveHeight: "Golfhoogte",
+  wavePeriod: "Periode",
+  swell: "Deining",
+  surfBestWindow: "Beste surfmoment",
+  surfForecast48h: "Golfvoorspelling (48 uur)",
+  surfThresholdHint: "Stippellijn: 50 cm (marginaal) en 1 m (goed surfbaar)",
+  surfStatus: {
+    GO: "Surf GA",
+    WAIT: "Marginaal",
+    "NO GO": "Surf NO GO",
+    FLAT: "Plat",
+  },
 } as const;
 
 export function formatTimelineLabel(label: string): string {

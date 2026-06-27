@@ -5,6 +5,13 @@ export const IJMUIDEN = {
   name: "IJmuiden",
 } as const;
 
+/** IJmuiden aan zee - golfsurf spot (havenhoofd / line-up) */
+export const IJMUIDEN_AAN_ZEE = {
+  lat: 52.4637,
+  lon: 4.5323,
+  name: "IJmuiden aan zee",
+} as const;
+
 /** RWS Waterwebservices endpoints (ddapi20 is the current API) */
 export const RWS_ENDPOINTS = {
   metadata: [
@@ -22,6 +29,8 @@ export const RWS_ENDPOINTS = {
 } as const;
 
 export const OPEN_METEO_BASE = "https://api.open-meteo.com/v1/forecast";
+
+export const OPEN_METEO_MARINE_BASE = "https://marine-api.open-meteo.com/v1/marine";
 
 export const CACHE_REVALIDATE_SECONDS = 300;
 

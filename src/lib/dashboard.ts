@@ -1,6 +1,7 @@
 import { IJMUIDEN } from "@/lib/constants";
 import { computeConfidence } from "@/lib/forecast/confidence";
 import { attachObservationHistory, fuseForecasts } from "@/lib/forecast/fusion";
+import { fetchMarineForecast, type MarinePoint } from "@/lib/marine/open-meteo-marine";
 import { freshnessLevel } from "@/lib/rws/client";
 import {
   discoverAndFetchStations,
@@ -13,6 +14,7 @@ import { fetchAllModels } from "@/lib/weather-models/open-meteo-base";
 import type { FusedForecastPoint, ModelForecast } from "@/lib/weather-models/types";
 import { recommendKiteSize, type RiderWeight } from "@/lib/watersport/kite-size";
 import { assessSafety, type GoStatus, type SafetyAssessment } from "@/lib/watersport/safety";
+import { buildSurfAssessment, type SurfAssessment } from "@/lib/watersport/surf";
 import type { SourceCheckResult } from "@/lib/sources";
 
 export interface DashboardData {
@@ -50,6 +52,7 @@ export interface DashboardData {
   };
   kite: ReturnType<typeof recommendKiteSize>;
   safety: SafetyAssessment;
+  surf: SurfAssessment;
   stations: StationReading[];
   raw: Record<string, unknown>;
 }
@@ -69,6 +72,7 @@ function buildDashboardPayload(
   models: ModelForecast[],
   stations: StationSelection,
   riderWeight: RiderWeight,
+  marinePoints: MarinePoint[],
   options: { syncedAt?: string; bronnen?: SourceCheckResult[]; preview?: boolean } = {}
 ): DashboardData {
   const syncedAt = options.syncedAt ?? new Date().toISOString();
@@ -129,6 +133,15 @@ function buildDashboardPayload(
   });
 
   const kite = recommendKiteSize(speedMs, riderWeight);
+  const surf = buildSurfAssessment(
+    marinePoints,
+    fusion.points.map((p) => ({
+      time: p.time,
+      speedMs: p.speedMs,
+      directionDeg: p.directionDeg,
+    })),
+    { speedMs, directionDeg }
+  );
 
   return {
     syncedAt,
@@ -164,6 +177,7 @@ function buildDashboardPayload(
     },
     kite,
     safety,
+    surf,
     stations: stations.all,
     raw: {
       syncedAt,
@@ -186,18 +200,24 @@ const EMPTY_STATIONS: StationSelection = {
   combinedSources: false,
 };
 
+const EMPTY_SURF = buildSurfAssessment([], [], { speedMs: 0, directionDeg: 270 });
+
 export async function getForecastPreviewData(
   riderWeight: RiderWeight = "medium"
 ): Promise<DashboardData> {
-  const models = await fetchAllModels(IJMUIDEN.lat, IJMUIDEN.lon, 120);
-  return buildDashboardPayload(models, EMPTY_STATIONS, riderWeight, { preview: true });
+  const [models, marinePoints] = await Promise.all([
+    fetchAllModels(IJMUIDEN.lat, IJMUIDEN.lon, 120),
+    fetchMarineForecast(72).catch(() => [] as MarinePoint[]),
+  ]);
+  return buildDashboardPayload(models, EMPTY_STATIONS, riderWeight, marinePoints, { preview: true });
 }
 
 export async function getDashboardData(riderWeight: RiderWeight = "medium"): Promise<DashboardData> {
-  const [stations, models] = await Promise.all([
+  const [stations, models, marinePoints] = await Promise.all([
     discoverAndFetchStations({ batchTimeoutMs: 12_000, perStationTimeoutMs: 6_000 }),
     fetchAllModels(IJMUIDEN.lat, IJMUIDEN.lon, 120),
+    fetchMarineForecast(72).catch(() => [] as MarinePoint[]),
   ]);
 
-  return buildDashboardPayload(models, stations, riderWeight, { preview: false });
+  return buildDashboardPayload(models, stations, riderWeight, marinePoints, { preview: false });
 }

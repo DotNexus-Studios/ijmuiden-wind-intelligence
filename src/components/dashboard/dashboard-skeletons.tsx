@@ -116,6 +116,22 @@ export function SafetyCheckSkeleton() {
   );
 }
 
+export function SurfCardSkeleton() {
+  return (
+    <CardShell className="h-full">
+      <SectionHeader title={UI.surfConditions} />
+      <Skeleton className="h-4 w-48 mb-4" />
+      <Skeleton className="h-16 w-full mb-4" />
+      <div className="grid grid-cols-3 gap-3 mb-4">
+        {Array.from({ length: 3 }).map((_, i) => (
+          <Skeleton key={i} className="h-12 w-full" />
+        ))}
+      </div>
+      <Skeleton className="h-44 w-full rounded-xl" />
+    </CardShell>
+  );
+}
+
 export function StickyBarSkeleton() {
   return (
     <div className="fixed bottom-0 inset-x-0 z-50 border-t border-border bg-white/95 backdrop-blur-md shadow-[0_-4px_20px_rgba(15,23,42,0.08)] safe-bottom">
