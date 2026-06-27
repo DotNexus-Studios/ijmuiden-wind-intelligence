@@ -1,6 +1,7 @@
 "use client";
 
 import { cn } from "@/lib/utils";
+import { STATUS_LABELS, TREND_LABELS } from "@/lib/i18n/nl";
 import type { GoStatus } from "@/lib/watersport/safety";
 
 const STATUS_STYLES: Record<GoStatus, string> = {
@@ -26,7 +27,7 @@ export function StatusBadge({ status, size = "lg", className }: StatusBadgeProps
         className
       )}
     >
-      {status}
+      {STATUS_LABELS[status]}
     </span>
   );
 }
@@ -40,18 +41,17 @@ export function FreshnessDot({ level }: { level: "green" | "orange" | "red" }) {
   return (
     <span
       className={cn("inline-block w-2.5 h-2.5 rounded-full", colors[level])}
-      title={`Data freshness: ${level}`}
+      title={`Dataversheid: ${level}`}
     />
   );
 }
 
 export function TrendArrow({ trend }: { trend: "rising" | "stable" | "dropping" }) {
   const icons = { rising: "↑", stable: "→", dropping: "↓" };
-  const labels = { rising: "Rising", stable: "Stable", dropping: "Dropping" };
   return (
     <span className="inline-flex items-center gap-1 text-sm font-medium">
       <span className="text-lg">{icons[trend]}</span>
-      {labels[trend]}
+      {TREND_LABELS[trend]}
     </span>
   );
 }
@@ -61,7 +61,7 @@ export function WindCompass({ direction }: { direction: number }) {
     <div className="relative w-20 h-20 mx-auto">
       <svg viewBox="0 0 100 100" className="w-full h-full">
         <circle cx="50" cy="50" r="45" fill="none" stroke="currentColor" strokeOpacity="0.2" strokeWidth="2" />
-        {["N", "E", "S", "W"].map((label, i) => {
+        {["N", "O", "Z", "W"].map((label, i) => {
           const angle = i * 90 - 90;
           const rad = (angle * Math.PI) / 180;
           const x = 50 + Math.cos(rad) * 38;

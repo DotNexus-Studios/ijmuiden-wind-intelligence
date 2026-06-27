@@ -1,5 +1,6 @@
 import { directionToCompass, msToKnots, type WindTrend } from "@/lib/units/wind";
 import { recommendKiteSize, type RiderWeight } from "@/lib/watersport/kite-size";
+import { WEIGHT_LABELS } from "@/lib/i18n/nl";
 
 export type GoStatus = "GO" | "WAIT" | "NO GO" | "EXPERT ONLY";
 
@@ -21,11 +22,11 @@ export interface SafetyInput {
 
 function classifyWindDirection(deg: number): string {
   const compass = directionToCompass(deg);
-  if (deg >= 225 && deg <= 315) return `side-onshore from ${compass}`;
-  if (deg >= 135 && deg < 225) return `onshore from ${compass}`;
-  if (deg >= 315 || deg < 45) return `side-shore from ${compass}`;
-  if (deg >= 45 && deg < 135) return `offshore from ${compass} - caution`;
-  return `from ${compass}`;
+  if (deg >= 225 && deg <= 315) return `side-onshore uit ${compass}`;
+  if (deg >= 135 && deg < 225) return `onshore uit ${compass}`;
+  if (deg >= 315 || deg < 45) return `side-shore uit ${compass}`;
+  if (deg >= 45 && deg < 135) return `offshore uit ${compass} - oppassen`;
+  return `uit ${compass}`;
 }
 
 export function assessSafety(input: SafetyInput): SafetyAssessment {
@@ -37,41 +38,41 @@ export function assessSafety(input: SafetyInput): SafetyAssessment {
 
   if (knots < 10) {
     status = "WAIT";
-    warnings.push("Wind below 10 kt - most kiters need more wind.");
+    warnings.push("Wind onder 10 kn - de meeste kiters hebben meer wind nodig.");
   } else if (knots >= 35 || gustKnots >= 40) {
     status = "NO GO";
-    warnings.push("Dangerous wind speeds for most riders.");
+    warnings.push("Gevaarlijke windsnelheden voor de meeste riders.");
   } else if (knots >= 28 || gustKnots >= 35) {
     status = "EXPERT ONLY";
-    warnings.push("Strong conditions - experienced riders with small kites only.");
+    warnings.push("Sterke condities - alleen ervaren riders met kleine kites.");
   } else if (gustKnots - knots > 10) {
     status = status === "GO" ? "WAIT" : status;
-    warnings.push("Large gust spread - gusty and unpredictable.");
+    warnings.push("Grote verschillen tussen wind en vlagen - wisselvallig.");
   }
 
   if (input.directionDeg >= 45 && input.directionDeg < 135) {
     status = status === "GO" ? "EXPERT ONLY" : status;
-    warnings.push("Offshore wind - do not ride unless you have rescue support.");
+    warnings.push("Offshore wind - niet varen zonder reddingsplan.");
   }
 
   if (input.trend === "rising" && knots > 20) {
     if (status === "GO") status = "WAIT";
-    warnings.push("Wind building - conditions may change quickly.");
+    warnings.push("Wind neemt toe - condities kunnen snel veranderen.");
   }
 
   if (input.confidence < 50) {
     if (status === "GO") status = "WAIT";
-    warnings.push("Low confidence in forecast - verify at the beach.");
+    warnings.push("Lage betrouwbaarheid - check condities op het strand.");
   }
 
   const weight = input.riderWeight ?? "medium";
   const kite = recommendKiteSize(input.windSpeedMs, weight);
   const trendWord =
-    input.trend === "rising" ? "building" : input.trend === "dropping" ? "easing" : "stable";
+    input.trend === "rising" ? "oplopend" : input.trend === "dropping" ? "afnemend" : "stabiel";
 
   return {
     status,
-    explanation: `Wind is ${windChar}, ${trendWord}, ${Math.round(knots)}-${Math.round(gustKnots)} kt. ${kite.notes} Recommended ${kite.primary} for ${weight} riders.`,
+    explanation: `Wind is ${windChar}, ${trendWord}, ${Math.round(knots)}-${Math.round(gustKnots)} kn. ${kite.notes} Aanbevolen ${kite.primary} voor ${WEIGHT_LABELS[weight].toLowerCase()} riders.`,
     warnings,
     windCharacter: windChar,
   };

@@ -11,6 +11,7 @@ import {
 } from "recharts";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { msToKnots } from "@/lib/units/wind";
+import { UI, formatTimelineLabel } from "@/lib/i18n/nl";
 import type { DashboardData } from "@/lib/dashboard";
 
 const MODEL_COLORS: Record<string, string> = {
@@ -27,7 +28,7 @@ export function ForecastTimeline({ data }: { data: DashboardData }) {
   return (
     <Card>
       <CardHeader className="pb-2">
-        <CardTitle className="text-base">Forecast timeline</CardTitle>
+        <CardTitle className="text-base">{UI.forecastTimeline}</CardTitle>
       </CardHeader>
       <CardContent>
         <div className="flex gap-3 overflow-x-auto pb-2 -mx-1 px-1 snap-x">
@@ -36,11 +37,11 @@ export function ForecastTimeline({ data }: { data: DashboardData }) {
               key={point.label}
               className="flex-shrink-0 snap-start min-w-[88px] rounded-xl bg-muted/40 p-3 text-center"
             >
-              <p className="text-xs text-muted-foreground">{point.label}</p>
+              <p className="text-xs text-muted-foreground">{formatTimelineLabel(point.label)}</p>
               <p className="text-2xl font-bold tabular-nums mt-1">
                 {Math.round(msToKnots(point.speedMs))}
               </p>
-              <p className="text-xs text-muted-foreground">kt</p>
+              <p className="text-xs text-muted-foreground">kn</p>
               <p className="text-[10px] text-muted-foreground mt-1">
                 {Math.round(point.directionDeg)}° · {Math.round(point.confidence)}%
               </p>
@@ -70,7 +71,7 @@ export function ModelComparisonChart({ data }: { data: DashboardData }) {
   return (
     <Card>
       <CardHeader className="pb-2">
-        <CardTitle className="text-base">Model comparison</CardTitle>
+        <CardTitle className="text-base">{UI.modelComparison}</CardTitle>
       </CardHeader>
       <CardContent>
         <div className="overflow-x-auto -mx-2">
@@ -78,10 +79,10 @@ export function ModelComparisonChart({ data }: { data: DashboardData }) {
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={chartData}>
                 <XAxis dataKey="time" tick={{ fontSize: 10 }} interval="preserveStartEnd" />
-                <YAxis tick={{ fontSize: 10 }} unit=" kt" width={36} />
+                <YAxis tick={{ fontSize: 10 }} unit=" kn" width={36} />
                 <Tooltip contentStyle={{ background: "#0f172a", border: "1px solid #334155", borderRadius: 8 }} />
                 <Legend wrapperStyle={{ fontSize: 11 }} />
-                <Line type="monotone" dataKey="fused" stroke={MODEL_COLORS.fused} strokeWidth={2.5} dot={false} name="Fused" />
+                <Line type="monotone" dataKey="fused" stroke={MODEL_COLORS.fused} strokeWidth={2.5} dot={false} name={UI.fused} />
                 {models.map((m) => (
                   <Line
                     key={m.model}

@@ -19,7 +19,7 @@ export async function GET(request: Request) {
       },
     });
   } catch (err) {
-    const message = err instanceof Error ? err.message : "Failed to fetch dashboard data";
+    const message = err instanceof Error ? err.message : "Dashboarddata ophalen mislukt";
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }

@@ -17,7 +17,7 @@ const dmSans = DM_Sans({
 export const metadata: Metadata = {
   title: "IJmuiden Wind Intelligence",
   description:
-    "Real-time wind and water-sport decision dashboard for IJmuiden. RWS live measurements combined with HARMONIE, ECMWF, ICON-D2 and GFS forecasts.",
+    "Real-time winddashboard voor watersporters in IJmuiden. RWS live-metingen gecombineerd met HARMONIE, ECMWF, ICON-D2 en GFS voorspellingen.",
   applicationName: "IJmuiden Wind Intelligence",
   manifest: "/manifest.webmanifest",
   appleWebApp: {
@@ -27,7 +27,7 @@ export const metadata: Metadata = {
   },
   openGraph: {
     title: "IJmuiden Wind Intelligence",
-    description: "Should you go kiting in IJmuiden today?",
+    description: "Kun je vandaag kiten in IJmuiden?",
     type: "website",
     locale: "nl_NL",
   },

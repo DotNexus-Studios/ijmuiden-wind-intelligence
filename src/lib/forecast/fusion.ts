@@ -168,7 +168,7 @@ export function fuseForecasts(input: FusionInput): FusionResult {
 
   const points = sortedTimes.map((time) => {
     const h = hoursFromNow(time);
-    const label = Math.abs(h) < 0.5 ? "Now" : `+${Math.round(h)}h`;
+    const label = Math.abs(h) < 0.5 ? "Nu" : `+${Math.round(h)}u`;
     return fuseAtTime(models, time, label, bias, observed);
   });
 
@@ -182,7 +182,7 @@ export function fuseForecasts(input: FusionInput): FusionResult {
         return diff < bestDiff ? p : best;
       }, points[0]);
       if (!closest) return null;
-      const labels: Record<number, string> = { 0: "Now", 1: "+1h", 3: "+3h", 6: "+6h", 12: "+12h", 24: "+24h", 48: "+48h" };
+      const labels: Record<number, string> = { 0: "Nu", 1: "+1u", 3: "+3u", 6: "+6u", 12: "+12u", 24: "+24u", 48: "+48u" };
       return { ...closest, label: labels[offset] ?? closest.label };
     })
     .filter((p): p is FusedForecastPoint => p != null);

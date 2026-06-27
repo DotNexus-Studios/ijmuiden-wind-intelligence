@@ -8,10 +8,12 @@ import { fetchAllModels } from "@/lib/weather-models/open-meteo-base";
 import type { FusedForecastPoint, ModelForecast } from "@/lib/weather-models/types";
 import { recommendKiteSize, type RiderWeight } from "@/lib/watersport/kite-size";
 import { assessSafety, type GoStatus, type SafetyAssessment } from "@/lib/watersport/safety";
+import { checkAllSources, type SourceCheckResult } from "@/lib/sources";
 
 export interface DashboardData {
   syncedAt: string;
   error?: string;
+  bronnen: SourceCheckResult[];
   live: {
     speedMs: number;
     gustMs: number;
@@ -45,9 +47,10 @@ export interface DashboardData {
 export async function getDashboardData(riderWeight: RiderWeight = "medium"): Promise<DashboardData> {
   const syncedAt = new Date().toISOString();
 
-  const [stations, models] = await Promise.all([
+  const [stations, models, bronnen] = await Promise.all([
     discoverAndFetchStations(),
     fetchAllModels(IJMUIDEN.lat, IJMUIDEN.lon, 120),
+    checkAllSources(),
   ]);
 
   const primary = stations.primary;
@@ -62,9 +65,14 @@ export async function getDashboardData(riderWeight: RiderWeight = "medium"): Pro
   attachObservationHistory(models, historyData);
 
   if (!hasLive && models.length > 0) {
-    const now = models[0].points.find(
-      (p) => Math.abs((new Date(p.time).getTime() - Date.now()) / 3_600_000) < 1
-    );
+    const allPoints = models.flatMap((m) => m.points);
+    const now = allPoints.reduce<(typeof allPoints)[0] | null>((best, p) => {
+      const diff = Math.abs(new Date(p.time).getTime() - Date.now());
+      if (diff >= 3_600_000) return best;
+      if (!best) return p;
+      const bestDiff = Math.abs(new Date(best.time).getTime() - Date.now());
+      return diff < bestDiff ? p : best;
+    }, null);
     if (now) {
       speedMs = now.speedMs;
       gustMs = now.gustMs ?? speedMs * 1.25;
@@ -81,6 +89,11 @@ export async function getDashboardData(riderWeight: RiderWeight = "medium"): Pro
   });
 
   const nowFused = fusion.timeline[0];
+  if (!hasLive && nowFused && speedMs < 0.5) {
+    speedMs = nowFused.speedMs;
+    gustMs = nowFused.gustMs;
+    directionDeg = nowFused.directionDeg;
+  }
   const baseConfidence = nowFused?.confidence ?? 60;
 
   const confidence = computeConfidence({
@@ -105,6 +118,7 @@ export async function getDashboardData(riderWeight: RiderWeight = "medium"): Pro
 
   return {
     syncedAt,
+    bronnen,
     live: {
       speedMs,
       gustMs,

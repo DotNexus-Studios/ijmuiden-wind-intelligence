@@ -1,4 +1,5 @@
 import { msToKnots } from "@/lib/units/wind";
+import { WEIGHT_LABELS } from "@/lib/i18n/nl";
 
 export type RiderWeight = "light" | "medium" | "heavy";
 
@@ -44,10 +45,10 @@ export function recommendKiteSize(
     sizeM2,
     notes:
       knots < 12
-        ? "Light wind - consider a larger kite or wait for more wind."
+        ? "Weinig wind - overweeg een grotere kite of wacht op meer wind."
         : knots > 30
-          ? "Strong wind - smaller kite, experienced riders only."
-          : `Good range for ${weight} riders (${kg} kg).`,
+          ? "Harde wind - kleinere kite, alleen voor ervaren riders."
+          : `Goed bereik voor ${WEIGHT_LABELS[weight].toLowerCase()} riders (${kg} kg).`,
   };
 }
 

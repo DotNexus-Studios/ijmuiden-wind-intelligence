@@ -23,53 +23,53 @@ export function computeConfidence(input: ConfidenceInput): ConfidenceResult {
   const freshness = freshnessLevel(input.dataAgeMinutes);
   if (freshness === "orange") {
     score -= 12;
-    factors.push({ label: "Data 10-30 min old", impact: -12 });
+    factors.push({ label: "Data 10-30 min oud", impact: -12 });
   } else if (freshness === "red") {
     score -= 25;
-    factors.push({ label: "Stale or missing live data", impact: -25 });
+    factors.push({ label: "Verouderde of ontbrekende live data", impact: -25 });
   }
 
   if (input.modelDisagreementMs > 3) {
     const impact = -Math.min(20, Math.round(input.modelDisagreementMs * 4));
     score += impact;
-    factors.push({ label: "Models disagree on wind speed", impact });
+    factors.push({ label: "Modellen verschillen sterk in windsnelheid", impact });
   } else if (input.modelDisagreementMs > 1.5) {
     score -= 8;
-    factors.push({ label: "Moderate model spread", impact: -8 });
+    factors.push({ label: "Matige spreiding tussen modellen", impact: -8 });
   }
 
   if (input.trend === "rising") {
     score -= 5;
-    factors.push({ label: "Wind rising rapidly", impact: -5 });
+    factors.push({ label: "Wind neemt snel toe", impact: -5 });
   } else if (input.trend === "dropping") {
     score -= 3;
-    factors.push({ label: "Wind dropping", impact: -3 });
+    factors.push({ label: "Wind neemt af", impact: -3 });
   }
 
   if ((input.directionShiftDeg ?? 0) > 30) {
     score -= 10;
-    factors.push({ label: "Rapid wind shift", impact: -10 });
+    factors.push({ label: "Snelle winddraaiing", impact: -10 });
   }
 
   if (!input.hasLiveData) {
     score -= 30;
-    factors.push({ label: "No RWS live measurement", impact: -30 });
+    factors.push({ label: "Geen RWS live-meting", impact: -30 });
   }
 
   if (input.usedFallbackStation) {
     score -= 8;
-    factors.push({ label: "Using fallback station", impact: -8 });
+    factors.push({ label: "Fallback-station actief", impact: -8 });
   }
 
   score = Math.max(0, Math.min(100, Math.round(score)));
-  if (factors.length === 0) factors.push({ label: "All signals aligned", impact: 0 });
+  if (factors.length === 0) factors.push({ label: "Alle signalen komen overeen", impact: 0 });
 
   return { score, factors };
 }
 
 export function confidenceLabel(score: number): string {
-  if (score >= 80) return "High";
-  if (score >= 60) return "Moderate";
-  if (score >= 40) return "Low";
-  return "Very low";
+  if (score >= 80) return "Hoog";
+  if (score >= 60) return "Matig";
+  if (score >= 40) return "Laag";
+  return "Zeer laag";
 }

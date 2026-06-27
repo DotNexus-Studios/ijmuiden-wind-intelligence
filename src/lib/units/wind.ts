@@ -28,21 +28,20 @@ export function msToBeaufort(ms: number): number {
 
 export function beaufortLabel(bft: number): string {
   const labels = [
-    "Calm",
-    "Light air",
-    "Light breeze",
-    "Gentle breeze",
-    "Moderate breeze",
-    "Fresh breeze",
-    "Strong breeze",
-    "Near gale",
-    "Gale",
-    "Strong gale",
+    "Stil",
+    "Luchtje",
+    "Lichte bries",
+    "Matige bries",
+    "Vrij krachtige bries",
+    "Vrij krachtige wind",
+    "Krachtige wind",
+    "Harde wind",
+    "Stormachtige wind",
     "Storm",
-    "Violent storm",
-    "Hurricane",
+    "Zware storm",
+    "Orkaan",
   ];
-  return labels[Math.min(Math.max(Math.round(bft), 0), 12)] ?? "Unknown";
+  return labels[Math.min(Math.max(Math.round(bft), 0), 12)] ?? "Onbekend";
 }
 
 export function formatWindSpeed(ms: number): {
