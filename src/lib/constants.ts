@@ -5,19 +5,16 @@ export const IJMUIDEN = {
   name: "IJmuiden",
 } as const;
 
-/** RWS Waterwebservices endpoints - try in order (ddapi20 is current) */
+/** RWS Waterwebservices endpoints (ddapi20 is the current API) */
 export const RWS_ENDPOINTS = {
   metadata: [
     "https://ddapi20-waterwebservices.rijkswaterstaat.nl/METADATASERVICES/OphalenCatalogus",
-    "https://waterwebservices.rijkswaterstaat.nl/METADATASERVICES/OphalenCatalogus",
   ],
   observations: [
     "https://ddapi20-waterwebservices.rijkswaterstaat.nl/ONLINEWAARNEMINGENSERVICES/OphalenWaarnemingen",
-    "https://waterwebservices.rijkswaterstaat.nl/ONLINEWAARNEMINGENSERVICES/OphalenWaarnemingen",
   ],
   latestObservations: [
     "https://ddapi20-waterwebservices.rijkswaterstaat.nl/ONLINEWAARNEMINGENSERVICES/OphalenLaatsteWaarnemingen",
-    "https://waterwebservices.rijkswaterstaat.nl/ONLINEWAARNEMINGENSERVICES/OphalenLaatsteWaarnemingen",
   ],
   checkObservations: [
     "https://ddapi20-waterwebservices.rijkswaterstaat.nl/ONLINEWAARNEMINGENSERVICES/CheckWaarnemingenAanwezig",

@@ -90,27 +90,51 @@ async function rwsPost<T>(
       });
 
       if (res.status === 204) {
-        throw {
-          source: "rws",
-          kind: "empty",
-          endpoint,
-          message: "Geen waarnemingen in deze periode (204)",
-          status: 204,
-        } satisfies RwsApiError;
+        return { data: {} as T, endpoint };
       }
 
-      if (!res.ok) {
-        const text = await res.text().catch(() => "");
+      const contentType = res.headers.get("content-type") ?? "";
+      const raw = await res.text();
+
+      if (!raw.trim()) {
+        return { data: {} as T, endpoint };
+      }
+
+      if (
+        raw.trimStart().startsWith("<") ||
+        contentType.includes("text/html")
+      ) {
         throw {
           source: "rws",
           kind: "http",
           endpoint,
-          message: `HTTP ${res.status}${text ? `: ${text.slice(0, 120)}` : ""}`,
+          message: `Geen JSON-response van RWS (${res.status}, ${contentType || "HTML"})`,
           status: res.status,
         } satisfies RwsApiError;
       }
 
-      const data = (await res.json()) as T & { Succesvol?: boolean; Foutmelding?: string };
+      let data: T & { Succesvol?: boolean; Foutmelding?: string };
+      try {
+        data = JSON.parse(raw) as T & { Succesvol?: boolean; Foutmelding?: string };
+      } catch {
+        throw {
+          source: "rws",
+          kind: "parse",
+          endpoint,
+          message: `Ongeldige JSON van RWS: ${raw.slice(0, 80)}`,
+          status: res.status,
+        } satisfies RwsApiError;
+      }
+
+      if (!res.ok) {
+        throw {
+          source: "rws",
+          kind: "http",
+          endpoint,
+          message: `HTTP ${res.status}${data.Foutmelding ? `: ${data.Foutmelding}` : ""}`,
+          status: res.status,
+        } satisfies RwsApiError;
+      }
       if (data.Succesvol === false) {
         throw {
           source: "rws",
@@ -185,16 +209,23 @@ function getMetingenList(item: NonNullable<ObservationResponse["WaarnemingenLijs
   return item.MetingenLijst ?? item.MetingLijst ?? [];
 }
 
-function buildWindMetadata(grootheid: "WINDSHD" | "WINDRTG", hoedanigheid?: "gemiddeld" | "max") {
+type WindGrootheid = "WINDSHD" | "WINDRTG" | "WINDST" | "WS10";
+
+function buildWindMetadata(grootheid: WindGrootheid) {
   return {
     AquoMetadata: {
-      Compartiment: { Code: "OW" },
+      Compartiment: { Code: "LT" },
       Grootheid: { Code: grootheid },
-      ...(hoedanigheid ? { Hoedanigheid: { Code: hoedanigheid } } : {}),
       ProcesType: "meting",
     },
   };
 }
+
+const BATCH_WIND_METADATA = [
+  buildWindMetadata("WINDSHD"),
+  buildWindMetadata("WINDST"),
+  buildWindMetadata("WINDRTG"),
+] as const;
 
 function latestFromResponse(data: ObservationResponse): RwsObservation | undefined {
   const all: MetingEntry[] = [];
@@ -225,14 +256,11 @@ function historyFromResponse(data: ObservationResponse): RwsObservation[] {
 function pickObservationFromLatestBatch(
   data: ObservationResponse,
   stationCode: string,
-  grootheid: string,
-  hoedanigheid?: string
+  grootheid: string
 ): RwsObservation | undefined {
   for (const item of data.WaarnemingenLijst ?? []) {
     if (item.Locatie?.Code !== stationCode) continue;
     if (item.AquoMetadata?.Grootheid?.Code !== grootheid) continue;
-    const h = item.AquoMetadata?.Hoedanigheid?.Code;
-    if (hoedanigheid && h && h !== hoedanigheid) continue;
     const list = getMetingenList(item);
     const latest = [...list].sort(
       (a, b) => new Date(b.Tijdstip ?? 0).getTime() - new Date(a.Tijdstip ?? 0).getTime()
@@ -261,11 +289,7 @@ export class RwsClient {
       this.endpoints.latestObservations,
       {
         LocatieLijst: stationCodes.map((Code) => ({ Code })),
-        AquoPlusWaarnemingMetadataLijst: [
-          buildWindMetadata("WINDSHD", "gemiddeld"),
-          buildWindMetadata("WINDSHD", "max"),
-          buildWindMetadata("WINDRTG", "gemiddeld"),
-        ],
+        AquoPlusWaarnemingMetadataLijst: [...BATCH_WIND_METADATA],
       },
       options
     );
@@ -274,8 +298,7 @@ export class RwsClient {
 
   async fetchObservations(
     stationCode: string,
-    grootheid: "WINDSHD" | "WINDRTG",
-    hoedanigheid: "gemiddeld" | "max" = "gemiddeld",
+    grootheid: WindGrootheid,
     hours = 6,
     options?: RwsRequestOptions
   ): Promise<ObservationResponse> {
@@ -283,7 +306,7 @@ export class RwsClient {
       this.endpoints.observations,
       {
         Locatie: { Code: stationCode },
-        AquoPlusWaarnemingMetadata: buildWindMetadata(grootheid, hoedanigheid),
+        AquoPlusWaarnemingMetadata: buildWindMetadata(grootheid),
         Periode: periodLastHours(hours),
       },
       options
@@ -296,13 +319,13 @@ export class RwsClient {
     hours = 6,
     options?: RwsRequestOptions
   ): Promise<{ latest: RwsObservationBundle; history: { speed: RwsObservation[] } }> {
-    const speedData = await this.fetchObservations(stationCode, "WINDSHD", "gemiddeld", hours, options);
+    const speedData = await this.fetchObservations(stationCode, "WINDSHD", hours, options);
     let gustData: ObservationResponse | undefined;
     let dirData: ObservationResponse | undefined;
     try {
       [gustData, dirData] = await Promise.all([
-        this.fetchObservations(stationCode, "WINDSHD", "max", hours, options),
-        this.fetchObservations(stationCode, "WINDRTG", "gemiddeld", hours, options),
+        this.fetchObservations(stationCode, "WINDST", hours, options),
+        this.fetchObservations(stationCode, "WINDRTG", hours, options),
       ]);
     } catch {
       // gust and direction are optional
@@ -319,9 +342,9 @@ export class RwsClient {
 
   parseLatestBatchForStation(data: ObservationResponse, stationCode: string): RwsObservationBundle {
     return {
-      speed: pickObservationFromLatestBatch(data, stationCode, "WINDSHD", "gemiddeld"),
-      gust: pickObservationFromLatestBatch(data, stationCode, "WINDSHD", "max"),
-      direction: pickObservationFromLatestBatch(data, stationCode, "WINDRTG", "gemiddeld"),
+      speed: pickObservationFromLatestBatch(data, stationCode, "WINDSHD"),
+      gust: pickObservationFromLatestBatch(data, stationCode, "WINDST"),
+      direction: pickObservationFromLatestBatch(data, stationCode, "WINDRTG"),
     };
   }
 }
