@@ -18,6 +18,7 @@ interface LivePollResponse {
   combinedSources?: boolean;
   sourceLabel?: string | null;
   contributors?: DashboardData["live"]["contributors"];
+  fusion?: DashboardData["fusion"];
   rwsError?: string | null;
   station: DashboardData["live"]["station"];
   live: {
@@ -121,7 +122,11 @@ export function useDashboardData(weight: RiderWeight) {
             combinedSources: liveData.combinedSources ?? prev.live.combinedSources,
             sourceLabel: liveData.sourceLabel ?? prev.live.sourceLabel,
             contributors: liveData.contributors ?? prev.live.contributors,
+            fusionConfidence: liveData.fusion?.confidence ?? prev.live.fusionConfidence,
+            fusionConfidenceLabel: liveData.fusion?.confidenceLabel ?? prev.live.fusionConfidenceLabel,
+            fusionWarnings: liveData.fusion?.warnings ?? prev.live.fusionWarnings,
           },
+          fusion: liveData.fusion ?? prev.fusion,
         };
       });
     } finally {

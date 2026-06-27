@@ -1,11 +1,12 @@
-import { IJMUIDEN } from "@/lib/constants";
+import { TARGET_LOCATION } from "@/lib/config/location";
 import {
   observationAgeMinutes,
   rwsClient,
   rwsErrorMessage,
   type RwsObservationBundle,
 } from "@/lib/rws/client";
-import { fuseStationReadings, type FusedLiveWind } from "@/lib/rws/fuse-stations";
+import type { FusedLiveWind } from "@/lib/fusion/types";
+import { fetchFusedRealtimeWind } from "@/lib/fusion/service";
 
 export interface StationDefinition {
   code: string;
@@ -77,7 +78,7 @@ export interface DiscoverOptions {
 function readingFromBatch(station: StationDefinition, latest: RwsObservationBundle): StationReading {
   return {
     station,
-    distanceKm: haversineKm(IJMUIDEN.lat, IJMUIDEN.lon, station.lat, station.lon),
+    distanceKm: haversineKm(TARGET_LOCATION.latitude, TARGET_LOCATION.longitude, station.lat, station.lon),
     latest,
     history: [],
     ageMinutes: observationAgeMinutes(latest.speed),
@@ -99,68 +100,62 @@ export async function discoverAndFetchStations(
     readings = IJMUIDEN_STATIONS.map((station) =>
       readingFromBatch(station, rwsClient.parseLatestBatchForStation(batch, station.code))
     );
-    const result = finalizeSelection(readings);
-    if (result.fused) return result;
   } catch (err) {
     batchError = rwsErrorMessage(err);
   }
 
-  if (options.skipFallback) {
-    readings =
-      readings.length > 0
-        ? readings
-        : IJMUIDEN_STATIONS.map((station) => ({
+  if (!options.skipFallback) {
+    readings = await Promise.all(
+      IJMUIDEN_STATIONS.map(async (station) => {
+        const existing = readings.find((r) => r.station.code === station.code);
+        if (existing?.available) return existing;
+
+        try {
+          const { latest, history } = await rwsClient.fetchWindBundle(station.code, 6, {
+            timeoutMs: perStationTimeout,
+          });
+          return {
             station,
-            distanceKm: haversineKm(IJMUIDEN.lat, IJMUIDEN.lon, station.lat, station.lon),
-            latest: {},
-            history: [],
-            ageMinutes: null,
-            available: false,
-            error: batchError,
-          }));
-    const result = finalizeSelection(readings);
-    if (batchError) result.rwsError = batchError;
-    return result;
+            distanceKm: haversineKm(TARGET_LOCATION.latitude, TARGET_LOCATION.longitude, station.lat, station.lon),
+            latest,
+            history: history.speed.map((s) => ({ value: s.value, timestamp: s.timestamp })),
+            ageMinutes: observationAgeMinutes(latest.speed),
+            available: latest.speed != null,
+          } satisfies StationReading;
+        } catch (err) {
+          return {
+            station,
+            distanceKm: haversineKm(TARGET_LOCATION.latitude, TARGET_LOCATION.longitude, station.lat, station.lon),
+            latest: existing?.latest ?? {},
+            history: existing?.history ?? [],
+            ageMinutes: existing?.ageMinutes ?? null,
+            available: existing?.available ?? false,
+            error: rwsErrorMessage(err),
+          } satisfies StationReading;
+        }
+      })
+    );
+  } else if (readings.length === 0) {
+    readings = IJMUIDEN_STATIONS.map((station) => ({
+      station,
+      distanceKm: haversineKm(TARGET_LOCATION.latitude, TARGET_LOCATION.longitude, station.lat, station.lon),
+      latest: {},
+      history: [],
+      ageMinutes: null,
+      available: false,
+      error: batchError,
+    }));
   }
 
-  readings = await Promise.all(
-    IJMUIDEN_STATIONS.map(async (station) => {
-      const existing = readings.find((r) => r.station.code === station.code);
-      if (existing?.available) return existing;
-
-      try {
-        const { latest, history } = await rwsClient.fetchWindBundle(station.code, 6, {
-          timeoutMs: perStationTimeout,
-        });
-        return {
-          station,
-          distanceKm: haversineKm(IJMUIDEN.lat, IJMUIDEN.lon, station.lat, station.lon),
-          latest,
-          history: history.speed.map((s) => ({ value: s.value, timestamp: s.timestamp })),
-          ageMinutes: observationAgeMinutes(latest.speed),
-          available: latest.speed != null,
-        } satisfies StationReading;
-      } catch (err) {
-        return {
-          station,
-          distanceKm: haversineKm(IJMUIDEN.lat, IJMUIDEN.lon, station.lat, station.lon),
-          latest: existing?.latest ?? {},
-          history: existing?.history ?? [],
-          ageMinutes: existing?.ageMinutes ?? null,
-          available: existing?.available ?? false,
-          error: rwsErrorMessage(err),
-        } satisfies StationReading;
-      }
-    })
-  );
-
-  const result = finalizeSelection(readings);
-  if (!result.fused && batchError) result.rwsError = batchError;
+  const fusionResult = await fetchFusedRealtimeWind();
+  const fused: FusedLiveWind | null =
+    fusionResult.includedCount > 0 ? fusionResult : null;
+  const result = finalizeSelection(readings, fused);
+  if (batchError && !result.fused) result.rwsError = batchError;
   return result;
 }
 
-function finalizeSelection(readings: StationReading[]): StationSelection {
-  const fused = fuseStationReadings(readings);
+function finalizeSelection(readings: StationReading[], fused: FusedLiveWind | null): StationSelection {
 
   const available = readings
     .filter((r) => r.available)
@@ -200,8 +195,8 @@ export async function discoverStationsFromCatalog(): Promise<StationDefinition[]
       .map((l, i) => ({
         code: l.Code ?? `unknown-${i}`,
         name: l.Naam ?? l.Code ?? "Unknown",
-        lat: l.Geometrie?.punt?.y ?? l.Y ?? IJMUIDEN.lat,
-        lon: l.Geometrie?.punt?.x ?? l.X ?? IJMUIDEN.lon,
+        lat: l.Geometrie?.punt?.y ?? l.Y ?? TARGET_LOCATION.latitude,
+        lon: l.Geometrie?.punt?.x ?? l.X ?? TARGET_LOCATION.longitude,
         priority: 10 + i,
       }));
     if (ijmuidenLocs.length > 0) return [...IJMUIDEN_STATIONS, ...ijmuidenLocs];
@@ -211,4 +206,4 @@ export async function discoverStationsFromCatalog(): Promise<StationDefinition[]
   return IJMUIDEN_STATIONS;
 }
 
-export type { FusedLiveWind, FusedContributor } from "@/lib/rws/fuse-stations";
+export type { FusedLiveWind, FusedContributor } from "@/lib/fusion/types";

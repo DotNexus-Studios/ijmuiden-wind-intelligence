@@ -56,8 +56,8 @@ export function CurrentConditionsCard({ data, newMeasurement, loadingLive }: Her
         {awaitingLive && !obsTime
           ? UI.loadingPreview
           : live.combinedSources
-            ? `RWS ${UI.combinedSources}: ${stationName}`
-            : `RWS ${stationName}`}
+            ? `${UI.combinedSources}: ${stationName}`
+            : stationName}
       </p>
 
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_auto] items-start min-w-0">

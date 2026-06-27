@@ -1,3 +1,4 @@
+import { applyBiasCorrection, computeModelBiases } from "@/lib/fusion/forecast-correction";
 import type { FusedForecastPoint, FusionResult, ModelForecast, WeatherModelId } from "@/lib/weather-models/types";
 import {
   circularMeanDirection,
@@ -32,21 +33,6 @@ function getWeights(hoursAhead: number): Record<WeatherModelId, number> {
   return { harmonie: 0.05, icon: 0.15, ecmwf: 0.6, gfs: 0.2 };
 }
 
-function computeModelBias(
-  models: ModelForecast[],
-  observedSpeedMs?: number
-): Partial<Record<WeatherModelId, number>> {
-  const bias: Partial<Record<WeatherModelId, number>> = {};
-  if (observedSpeedMs == null) return bias;
-
-  for (const model of models) {
-    const nowPoint = model.points.find((p) => Math.abs(hoursFromNow(p.time)) < 1);
-    if (nowPoint) {
-      bias[model.model] = observedSpeedMs - nowPoint.speedMs;
-    }
-  }
-  return bias;
-}
 
 function computeModelErrors(
   models: ModelForecast[],
@@ -101,7 +87,7 @@ function fuseAtTime(
     const point = model.points.find((p) => p.time === timeIso);
     if (!point) continue;
 
-    let speed = point.speedMs + (bias[model.model] ?? 0);
+    let speed = applyBiasCorrection(point.speedMs, model.model, hoursAhead, bias);
     const error = model.errorTracking?.h6 ?? 0;
     const errorPenalty = error > 0 ? Math.max(0.5, 1 - error / 5) : 1;
 
@@ -159,7 +145,8 @@ export function fuseForecasts(input: FusionInput): FusionResult {
     return { points: [], timeline: [], modelForecasts: [], disagreementScore: 1, coastalCorrectionApplied: false };
   }
 
-  const bias = computeModelBias(models, observedSpeedMs);
+  const bias =
+    observedSpeedMs != null ? computeModelBiases(models, observedSpeedMs) : {};
   const allTimes = new Set<string>();
   for (const m of models) for (const p of m.points) allTimes.add(p.time);
 

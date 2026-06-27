@@ -1,11 +1,12 @@
-import { IJMUIDEN } from "@/lib/constants";
+import { TARGET_LOCATION } from "@/lib/config/location";
 import { computeConfidence } from "@/lib/forecast/confidence";
 import { attachObservationHistory, fuseForecasts } from "@/lib/forecast/fusion";
+import { fetchFusedRealtimeWind } from "@/lib/fusion/service";
+import type { FusedContributor, FusedRealtimeWind } from "@/lib/fusion/types";
 import { fetchMarineForecast, type MarinePoint } from "@/lib/marine/open-meteo-marine";
 import { freshnessLevel } from "@/lib/rws/client";
 import {
   discoverAndFetchStations,
-  type FusedContributor,
   type StationReading,
   type StationSelection,
 } from "@/lib/rws/stations";
@@ -36,6 +37,9 @@ export interface DashboardData {
     combinedSources: boolean;
     sourceLabel: string | null;
     contributors: FusedContributor[];
+    fusionConfidence: number | null;
+    fusionConfidenceLabel: string | null;
+    fusionWarnings: string[];
   };
   decision: {
     status: GoStatus;
@@ -54,6 +58,7 @@ export interface DashboardData {
   safety: SafetyAssessment;
   surf: SurfAssessment;
   stations: StationReading[];
+  fusion: FusedRealtimeWind | null;
   raw: Record<string, unknown>;
 }
 
@@ -73,19 +78,19 @@ function buildDashboardPayload(
   stations: StationSelection,
   riderWeight: RiderWeight,
   marinePoints: MarinePoint[],
+  realtimeFusion: FusedRealtimeWind | null,
   options: { syncedAt?: string; bronnen?: SourceCheckResult[]; preview?: boolean } = {}
 ): DashboardData {
   const syncedAt = options.syncedAt ?? new Date().toISOString();
-  const fused = stations.fused;
-  const hasLive = fused != null;
+  const hasLive = realtimeFusion != null && realtimeFusion.includedCount > 0;
 
-  let speedMs = fused?.speedMs ?? 0;
-  let gustMs = fused?.gustMs ?? speedMs * 1.25;
-  let directionDeg = fused?.directionDeg ?? 270;
-  const ageMinutes = fused?.ageMinutes ?? null;
-  const observationTimestamp = fused?.observationTimestamp ?? null;
+  let speedMs = realtimeFusion?.speedMs ?? 0;
+  let gustMs = realtimeFusion?.gustMs ?? speedMs * 1.25;
+  let directionDeg = realtimeFusion?.directionDeg ?? 270;
+  const ageMinutes = realtimeFusion?.ageMinutes ?? null;
+  const observationTimestamp = realtimeFusion?.observationTimestamp ?? null;
 
-  const historyData = fused?.history ?? stations.primary?.history ?? [];
+  const historyData = realtimeFusion?.history ?? stations.fused?.history ?? stations.primary?.history ?? [];
   attachObservationHistory(models, historyData);
 
   if (!hasLive && models.length > 0) {
@@ -98,50 +103,62 @@ function buildDashboardPayload(
   }
 
   const trend = computeTrend(historyData.map((h) => h.value));
-  const fusion = fuseForecasts({
+  const forecastFusion = fuseForecasts({
     models,
     observedSpeedMs: hasLive ? speedMs : undefined,
     observedDirectionDeg: hasLive ? directionDeg : undefined,
     observedGustMs: hasLive ? gustMs : undefined,
   });
 
-  const nowFused = fusion.timeline[0];
+  const nowFused = forecastFusion.timeline[0];
   if (!hasLive && nowFused && speedMs < 0.5) {
     speedMs = nowFused.speedMs;
     gustMs = nowFused.gustMs;
     directionDeg = nowFused.directionDeg;
   }
-  const baseConfidence = nowFused?.confidence ?? 60;
 
-  const confidence = computeConfidence({
-    baseConfidence,
+  const liveConfidenceFactors =
+    (realtimeFusion?.debug?.confidenceFactors as Array<{ label: string; impact: number }>) ?? [];
+
+  const forecastConfidence = computeConfidence({
+    baseConfidence: nowFused?.confidence ?? 60,
     dataAgeMinutes: ageMinutes,
-    modelDisagreementMs: fusion.disagreementScore,
+    modelDisagreementMs: forecastFusion.disagreementScore,
     trend,
     hasLiveData: hasLive,
     usedFallbackStation: stations.usedFallback,
-    combinedRwsSources: stations.combinedSources,
+    combinedRwsSources: (realtimeFusion?.includedCount ?? 0) > 1,
   });
+
+  const confidenceScore =
+    hasLive && realtimeFusion?.confidence != null
+      ? Math.round(realtimeFusion.confidence * 0.75 + forecastConfidence.score * 0.25)
+      : forecastConfidence.score;
+
+  const confidenceFactors =
+    liveConfidenceFactors.length > 0 ? liveConfidenceFactors : forecastConfidence.factors;
 
   const safety = assessSafety({
     windSpeedMs: speedMs,
     gustMs,
     directionDeg,
     trend,
-    confidence: confidence.score,
+    confidence: confidenceScore,
     riderWeight,
   });
 
   const kite = recommendKiteSize(speedMs, riderWeight);
   const surf = buildSurfAssessment(
     marinePoints,
-    fusion.points.map((p) => ({
+    forecastFusion.points.map((p) => ({
       time: p.time,
       speedMs: p.speedMs,
       directionDeg: p.directionDeg,
     })),
     { speedMs, directionDeg }
   );
+
+  const allWarnings = [...safety.warnings, ...(realtimeFusion?.warnings ?? [])];
 
   return {
     syncedAt,
@@ -155,38 +172,44 @@ function buildDashboardPayload(
       trend,
       formatted: formatWindSpeed(speedMs),
       ageMinutes,
-      freshness: freshnessLevel(ageMinutes),
+      freshness: realtimeFusion?.freshness ?? freshnessLevel(ageMinutes),
       station: stations.primary,
       usedFallback: stations.usedFallback,
-      combinedSources: stations.combinedSources,
-      sourceLabel: fused?.sourceLabel ?? null,
-      contributors: fused?.contributors ?? [],
+      combinedSources: (realtimeFusion?.includedCount ?? 0) > 1,
+      sourceLabel: realtimeFusion?.primarySource ?? null,
+      contributors: realtimeFusion?.contributors.filter((c) => c.included) ?? [],
+      fusionConfidence: realtimeFusion?.confidence ?? null,
+      fusionConfidenceLabel: realtimeFusion?.confidenceLabel ?? null,
+      fusionWarnings: realtimeFusion?.warnings ?? [],
     },
     decision: {
       status: safety.status,
-      confidence: confidence.score,
-      confidenceFactors: confidence.factors,
+      confidence: confidenceScore,
+      confidenceFactors,
       explanation: safety.explanation,
-      warnings: safety.warnings,
+      warnings: allWarnings,
     },
     forecast: {
-      timeline: fusion.timeline,
-      points: fusion.points.slice(0, 48),
-      models: fusion.modelForecasts,
-      disagreementScore: fusion.disagreementScore,
+      timeline: forecastFusion.timeline,
+      points: forecastFusion.points.slice(0, 48),
+      models: forecastFusion.modelForecasts,
+      disagreementScore: forecastFusion.disagreementScore,
     },
     kite,
     safety,
     surf,
     stations: stations.all,
+    fusion: realtimeFusion,
     raw: {
       syncedAt,
       stationCount: stations.all.length,
       modelCount: models.length,
-      fusionPointCount: fusion.points.length,
+      fusionPointCount: forecastFusion.points.length,
       preview: options.preview ?? false,
-      rwsSourceCount: fused?.sourceCount ?? 0,
-      combinedSources: stations.combinedSources,
+      sensorCount: realtimeFusion?.sensorCount ?? 0,
+      includedCount: realtimeFusion?.includedCount ?? 0,
+      fusionConfidence: realtimeFusion?.confidence ?? null,
+      combinedSources: (realtimeFusion?.includedCount ?? 0) > 1,
     },
   };
 }
@@ -200,24 +223,38 @@ const EMPTY_STATIONS: StationSelection = {
   combinedSources: false,
 };
 
-const EMPTY_SURF = buildSurfAssessment([], [], { speedMs: 0, directionDeg: 270 });
-
 export async function getForecastPreviewData(
   riderWeight: RiderWeight = "medium"
 ): Promise<DashboardData> {
+  const lat = TARGET_LOCATION.latitude;
+  const lon = TARGET_LOCATION.longitude;
   const [models, marinePoints] = await Promise.all([
-    fetchAllModels(IJMUIDEN.lat, IJMUIDEN.lon, 120),
+    fetchAllModels(lat, lon, 120),
     fetchMarineForecast(72).catch(() => [] as MarinePoint[]),
   ]);
-  return buildDashboardPayload(models, EMPTY_STATIONS, riderWeight, marinePoints, { preview: true });
+  return buildDashboardPayload(models, EMPTY_STATIONS, riderWeight, marinePoints, null, {
+    preview: true,
+  });
 }
 
 export async function getDashboardData(riderWeight: RiderWeight = "medium"): Promise<DashboardData> {
-  const [stations, models, marinePoints] = await Promise.all([
+  const lat = TARGET_LOCATION.latitude;
+  const lon = TARGET_LOCATION.longitude;
+  const [stations, models, marinePoints, realtimeFusion] = await Promise.all([
     discoverAndFetchStations({ batchTimeoutMs: 12_000, perStationTimeoutMs: 6_000 }),
-    fetchAllModels(IJMUIDEN.lat, IJMUIDEN.lon, 120),
+    fetchAllModels(lat, lon, 120),
     fetchMarineForecast(72).catch(() => [] as MarinePoint[]),
+    fetchFusedRealtimeWind(),
   ]);
 
-  return buildDashboardPayload(models, stations, riderWeight, marinePoints, { preview: false });
+  return buildDashboardPayload(
+    models,
+    stations,
+    riderWeight,
+    marinePoints,
+    realtimeFusion,
+    { preview: false }
+  );
 }
+
+export type { FusedContributor };

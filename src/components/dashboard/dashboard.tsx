@@ -1,6 +1,9 @@
 "use client";
 
 import { CurrentConditionsCard, StationInfoCard } from "@/components/dashboard/hero-card";
+import { LiveFusionCard } from "@/components/dashboard/live-fusion-card";
+import { MobileDecisionStrip } from "@/components/dashboard/mobile-decision-strip";
+import { SensorNetworkCard } from "@/components/dashboard/sensor-network-card";
 import {
   ForecastOverviewCard,
   ModelComparisonTable,
@@ -12,6 +15,7 @@ import {
   SafetyCheck,
   StationDetails,
   DataSourcesPanel,
+  FusionTransparencyCard,
   DebugDrawer,
 } from "@/components/dashboard/sections";
 import { SurfConditionsCard } from "@/components/dashboard/surf-card";
@@ -58,6 +62,10 @@ export function Dashboard() {
       <LoadingBanner phase={phase} className="mb-4" />
 
       <div className="pb-28 space-y-4 min-w-0 max-w-full">
+        {data && (
+          <MobileDecisionStrip data={data} onRefresh={refresh} loading={loading || polling} />
+        )}
+
         <div className="grid xl:grid-cols-2 gap-4 min-w-0">
           {data ? (
             <CurrentConditionsCard data={data} newMeasurement={newMeasurement} loadingLive={loading} />
@@ -98,6 +106,13 @@ export function Dashboard() {
         </div>
 
         <div className="grid lg:grid-cols-2 gap-4 min-w-0">
+          {data?.fusion ? (
+            <LiveFusionCard data={data} onRefresh={refresh} loading={loading || polling} />
+          ) : null}
+          {data?.fusion ? <SensorNetworkCard data={data} /> : null}
+        </div>
+
+        <div className="grid lg:grid-cols-2 gap-4 min-w-0">
           {data ? (
             <SafetyCheck data={data} />
           ) : (
@@ -125,6 +140,7 @@ export function Dashboard() {
               Technische details & debug
             </summary>
             <div className="space-y-3 pt-2 min-w-0">
+              <FusionTransparencyCard data={data} />
               <StationDetails data={data} />
               <DataSourcesPanel />
               <DebugDrawer data={data} />

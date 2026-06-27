@@ -22,7 +22,7 @@ export const WEIGHT_LABELS = {
 
 export const UI = {
   appTitle: "IJmuiden Wind Intelligence",
-  appSubtitle: "RWS live · Wind & golven · Multi-model voorspelling",
+  appSubtitle: "Multi-source wind · IJmuiderstrand · Voorspelling",
   navDashboard: "Dashboard",
   navForecast: "Voorspelling",
   navTools: "Tools",
@@ -77,7 +77,7 @@ export const UI = {
   rawDebug: "Ruwe data / debug",
   loadError: "Winddata kon niet geladen worden",
   loadingInitial: "Dashboard laden...",
-  loadingLive: "Live RWS-data ophalen...",
+  loadingLive: "Live winddata ophalen...",
   loadingLiveHint: "Voorspelling is al zichtbaar. Live metingen kunnen even duren.",
   loadingPreview: "Voorspelling",
   tryAgain: "Opnieuw proberen",
@@ -99,6 +99,24 @@ export const UI = {
     "NO GO": "Surf NO GO",
     FLAT: "Plat",
   },
+  liveFusion: "Live Fusion",
+  finalWind: "Definitieve wind",
+  nearbySensors: "Sensoren nabij",
+  freshness: "Versheid",
+  primarySource: "Primaire bron",
+  lastSync: "Laatste sync",
+  whyThisValue: "Waarom deze waarde?",
+  fusionTarget: "Doellocatie",
+  fusionWeight: "Gewicht",
+  fusionExcluded: "Genegeerd",
+  fusionReason: "Reden",
+  fusionResult: "Fusieresultaat",
+  sensorNetwork: "Sensornetwerk",
+  provider: "Provider",
+  station: "Station",
+  weight: "Gewicht",
+  health: "Gezondheid",
+  status: "Status",
 } as const;
 
 export function formatTimelineLabel(label: string): string {

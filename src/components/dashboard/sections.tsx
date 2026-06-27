@@ -16,6 +16,7 @@ import type { DashboardData } from "@/lib/dashboard";
 import type { SourceCheckResult } from "@/lib/sources";
 import type { RiderWeight } from "@/lib/watersport/kite-size";
 import { UI, WEIGHT_LABELS } from "@/lib/i18n/nl";
+import { directionLabel, msToKnots } from "@/lib/units/wind";
 import { cn } from "@/lib/utils";
 
 interface KiteCalculatorProps {
@@ -312,6 +313,74 @@ export function DataSourcesPanel() {
               ))}
             </div>
               </>
+            )}
+          </div>
+        </CollapsibleContent>
+      </div>
+    </Collapsible>
+  );
+}
+
+export function FusionTransparencyCard({ data }: { data: DashboardData }) {
+  const [open, setOpen] = useState(false);
+  const fusion = data.fusion;
+  const sources = fusion?.observations ?? [];
+
+  if (!fusion || sources.length === 0) return null;
+
+  return (
+    <Collapsible open={open} onOpenChange={setOpen}>
+      <div className="dashboard-card overflow-hidden">
+        <CollapsibleTrigger className="w-full text-left px-5 py-4 flex items-center justify-between">
+          <span className="text-sm font-semibold text-slate-700">{UI.whyThisValue}</span>
+          <ChevronDown className={cn("h-4 w-4 text-slate-400 transition-transform", open && "rotate-180")} />
+        </CollapsibleTrigger>
+        <CollapsibleContent>
+          <div className="px-5 pb-5 space-y-3 min-w-0">
+            <p className="text-xs text-slate-500">
+              {UI.fusionTarget}: {fusion.debug?.targetLocation ? String(fusion.debug.targetLocation) : "IJmuiderstrand"} ·{" "}
+              {fusion.includedCount} bronnen · betrouwbaarheid {fusion.confidence}% ({fusion.confidenceLabel})
+            </p>
+            {sources.map((source) => {
+              const speedKt = Math.round(msToKnots(source.speedMs));
+              const included = source.included;
+              return (
+                <div
+                  key={source.id}
+                  className={cn(
+                    "rounded-lg p-3 text-sm border",
+                    included ? "bg-emerald-50/50 border-emerald-100" : "bg-slate-50 border-slate-100 opacity-80"
+                  )}
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0">
+                      <p className="font-medium text-slate-800 truncate">
+                        {included ? "✓" : "⚠"} {source.providerLabel} {source.stationName}
+                      </p>
+                      <p className="text-xs text-slate-500 mt-0.5">
+                        {source.distanceKm.toFixed(1)} km ·{" "}
+                        {source.ageMinutes != null ? `${Math.round(source.ageMinutes)} min` : UI.unknown} ·{" "}
+                        {speedKt} kt · {directionLabel(source.directionDeg ?? 270)}
+                      </p>
+                    </div>
+                    <Badge variant={included ? "default" : "secondary"} className="shrink-0 text-[10px]">
+                      {included ? `${UI.fusionWeight} ${source.weightPercent}%` : UI.fusionExcluded}
+                    </Badge>
+                  </div>
+                  {!included && source.exclusionReason && (
+                    <p className="text-xs text-amber-700 mt-2">
+                      {UI.fusionReason}: {source.exclusionReason}
+                    </p>
+                  )}
+                </div>
+              );
+            })}
+            {fusion.warnings.length > 0 && (
+              <div className="text-xs text-amber-700 space-y-1 pt-1">
+                {fusion.warnings.map((w) => (
+                  <p key={w}>⚠ {w}</p>
+                ))}
+              </div>
             )}
           </div>
         </CollapsibleContent>
