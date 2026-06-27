@@ -5,6 +5,7 @@ import {
   rwsErrorMessage,
   type RwsObservationBundle,
 } from "@/lib/rws/client";
+import { fuseStationReadings, type FusedLiveWind } from "@/lib/rws/fuse-stations";
 
 export interface StationDefinition {
   code: string;
@@ -54,10 +55,16 @@ export interface StationReading {
 }
 
 export interface StationSelection {
+  /** Gewogen combinatie van alle beschikbare bronnen */
+  fused: FusedLiveWind | null;
+  /** Enkelvoudige meting (meest recente station) voor detailweergave */
   primary: StationReading | null;
   fallbacks: StationReading[];
   all: StationReading[];
+  /** Alleen secundaire station gebruikt (geen IJGeul) */
   usedFallback: boolean;
+  /** Meerdere RWS-stations gecombineerd */
+  combinedSources: boolean;
   rwsError?: string;
 }
 
@@ -67,6 +74,17 @@ export interface DiscoverOptions {
   skipFallback?: boolean;
 }
 
+function readingFromBatch(station: StationDefinition, latest: RwsObservationBundle): StationReading {
+  return {
+    station,
+    distanceKm: haversineKm(IJMUIDEN.lat, IJMUIDEN.lon, station.lat, station.lon),
+    latest,
+    history: [],
+    ageMinutes: observationAgeMinutes(latest.speed),
+    available: latest.speed != null,
+  };
+}
+
 export async function discoverAndFetchStations(
   options: DiscoverOptions = {}
 ): Promise<StationSelection> {
@@ -74,43 +92,42 @@ export async function discoverAndFetchStations(
   const perStationTimeout = options.perStationTimeoutMs ?? 12_000;
   const codes = [...new Set(IJMUIDEN_STATIONS.map((s) => s.code))];
   let batchError: string | undefined;
+  let readings: StationReading[] = [];
 
   try {
     const batch = await rwsClient.fetchLatestWindBatch(codes, { timeoutMs: batchTimeout });
-    const readings: StationReading[] = IJMUIDEN_STATIONS.map((station) => {
-      const latest = rwsClient.parseLatestBatchForStation(batch, station.code);
-      return {
-        station,
-        distanceKm: haversineKm(IJMUIDEN.lat, IJMUIDEN.lon, station.lat, station.lon),
-        latest,
-        history: [],
-        ageMinutes: observationAgeMinutes(latest.speed),
-        available: latest.speed != null,
-      };
-    });
+    readings = IJMUIDEN_STATIONS.map((station) =>
+      readingFromBatch(station, rwsClient.parseLatestBatchForStation(batch, station.code))
+    );
     const result = finalizeSelection(readings);
-    if (result.primary) return result;
+    if (result.fused) return result;
   } catch (err) {
     batchError = rwsErrorMessage(err);
   }
 
   if (options.skipFallback) {
-    const readings: StationReading[] = IJMUIDEN_STATIONS.map((station) => ({
-      station,
-      distanceKm: haversineKm(IJMUIDEN.lat, IJMUIDEN.lon, station.lat, station.lon),
-      latest: {},
-      history: [],
-      ageMinutes: null,
-      available: false,
-      error: batchError,
-    }));
+    readings =
+      readings.length > 0
+        ? readings
+        : IJMUIDEN_STATIONS.map((station) => ({
+            station,
+            distanceKm: haversineKm(IJMUIDEN.lat, IJMUIDEN.lon, station.lat, station.lon),
+            latest: {},
+            history: [],
+            ageMinutes: null,
+            available: false,
+            error: batchError,
+          }));
     const result = finalizeSelection(readings);
     if (batchError) result.rwsError = batchError;
     return result;
   }
 
-  const readings = await Promise.all(
+  readings = await Promise.all(
     IJMUIDEN_STATIONS.map(async (station) => {
+      const existing = readings.find((r) => r.station.code === station.code);
+      if (existing?.available) return existing;
+
       try {
         const { latest, history } = await rwsClient.fetchWindBundle(station.code, 6, {
           timeoutMs: perStationTimeout,
@@ -127,10 +144,10 @@ export async function discoverAndFetchStations(
         return {
           station,
           distanceKm: haversineKm(IJMUIDEN.lat, IJMUIDEN.lon, station.lat, station.lon),
-          latest: {},
-          history: [],
-          ageMinutes: null,
-          available: false,
+          latest: existing?.latest ?? {},
+          history: existing?.history ?? [],
+          ageMinutes: existing?.ageMinutes ?? null,
+          available: existing?.available ?? false,
           error: rwsErrorMessage(err),
         } satisfies StationReading;
       }
@@ -138,11 +155,13 @@ export async function discoverAndFetchStations(
   );
 
   const result = finalizeSelection(readings);
-  if (!result.primary && batchError) result.rwsError = batchError;
+  if (!result.fused && batchError) result.rwsError = batchError;
   return result;
 }
 
 function finalizeSelection(readings: StationReading[]): StationSelection {
+  const fused = fuseStationReadings(readings);
+
   const available = readings
     .filter((r) => r.available)
     .sort((a, b) => {
@@ -153,11 +172,19 @@ function finalizeSelection(readings: StationReading[]): StationSelection {
     });
 
   const primary = available[0] ?? null;
+  const combinedSources = fused?.combinedSources ?? false;
+  const usedFallback =
+    fused != null &&
+    fused.sourceCount === 1 &&
+    fused.contributors[0]?.code !== IJMUIDEN_STATIONS[0].code;
+
   return {
+    fused,
     primary,
     fallbacks: available.slice(1),
     all: readings,
-    usedFallback: primary != null && primary.station.priority > 1,
+    usedFallback,
+    combinedSources,
   };
 }
 
@@ -183,3 +210,5 @@ export async function discoverStationsFromCatalog(): Promise<StationDefinition[]
   }
   return IJMUIDEN_STATIONS;
 }
+
+export type { FusedLiveWind, FusedContributor } from "@/lib/rws/fuse-stations";

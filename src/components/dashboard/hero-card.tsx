@@ -27,7 +27,7 @@ export function CurrentConditionsCard({ data, newMeasurement, loadingLive }: Her
   const { decision, live } = data;
   const gustKt = Math.round(msToKnots(live.gustMs));
   const obsTime = data.observationTimestamp;
-  const stationName = live.station?.station.name ?? "IJGeul, 1";
+  const stationName = live.sourceLabel ?? live.station?.station.name ?? "IJGeul, 1";
   const awaitingLive = loadingLive || data.preview;
 
   return (
@@ -53,7 +53,11 @@ export function CurrentConditionsCard({ data, newMeasurement, loadingLive }: Her
       />
 
       <p className="text-sm text-slate-500 -mt-2 mb-4 truncate">
-        {awaitingLive && !obsTime ? UI.loadingPreview : `RWS ${stationName}`}
+        {awaitingLive && !obsTime
+          ? UI.loadingPreview
+          : live.combinedSources
+            ? `RWS ${UI.combinedSources}: ${stationName}`
+            : `RWS ${stationName}`}
       </p>
 
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_auto] items-start min-w-0">

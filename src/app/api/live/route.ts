@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { freshnessLevel, observationAgeMinutes } from "@/lib/rws/client";
+import { freshnessLevel } from "@/lib/rws/client";
 import { discoverAndFetchStations } from "@/lib/rws/stations";
 import { computeTrend, formatWindSpeed } from "@/lib/units/wind";
 
@@ -8,15 +8,15 @@ export const dynamic = "force-dynamic";
 export async function GET() {
   const fetchedAt = new Date().toISOString();
   const stations = await discoverAndFetchStations();
-  const primary = stations.primary;
+  const fused = stations.fused;
 
-  const speedMs = primary?.latest.speed?.value ?? null;
-  const gustMs = primary?.latest.gust?.value ?? (speedMs != null ? speedMs * 1.25 : null);
-  const directionDeg = primary?.latest.direction?.value ?? null;
-  const observationTimestamp = primary?.latest.speed?.timestamp ?? null;
-  const ageMinutes = observationAgeMinutes(primary?.latest.speed);
+  const speedMs = fused?.speedMs ?? null;
+  const gustMs = fused?.gustMs ?? (speedMs != null ? speedMs * 1.25 : null);
+  const directionDeg = fused?.directionDeg ?? null;
+  const observationTimestamp = fused?.observationTimestamp ?? null;
+  const ageMinutes = fused?.ageMinutes ?? null;
 
-  const history = primary?.history ?? [];
+  const history = fused?.history ?? [];
   const trend = computeTrend(history.map((h) => h.value));
 
   return NextResponse.json({
@@ -24,9 +24,12 @@ export async function GET() {
     observationTimestamp,
     ageMinutes,
     freshness: freshnessLevel(ageMinutes),
-    hasLive: primary != null,
-    station: primary,
+    hasLive: fused != null,
+    station: stations.primary,
     usedFallback: stations.usedFallback,
+    combinedSources: stations.combinedSources,
+    sourceLabel: fused?.sourceLabel ?? null,
+    contributors: fused?.contributors ?? [],
     rwsError: stations.rwsError ?? null,
     live:
       speedMs != null

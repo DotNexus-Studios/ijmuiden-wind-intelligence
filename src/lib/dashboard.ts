@@ -4,6 +4,7 @@ import { attachObservationHistory, fuseForecasts } from "@/lib/forecast/fusion";
 import { freshnessLevel } from "@/lib/rws/client";
 import {
   discoverAndFetchStations,
+  type FusedContributor,
   type StationReading,
   type StationSelection,
 } from "@/lib/rws/stations";
@@ -16,9 +17,7 @@ import type { SourceCheckResult } from "@/lib/sources";
 
 export interface DashboardData {
   syncedAt: string;
-  /** Tijdstip van de RWS-meting zelf */
   observationTimestamp: string | null;
-  /** true wanneer alleen voorspelling geladen is, RWS volgt nog */
   preview?: boolean;
   error?: string;
   bronnen: SourceCheckResult[];
@@ -32,6 +31,9 @@ export interface DashboardData {
     freshness: "green" | "orange" | "red";
     station: StationReading | null;
     usedFallback: boolean;
+    combinedSources: boolean;
+    sourceLabel: string | null;
+    contributors: FusedContributor[];
   };
   decision: {
     status: GoStatus;
@@ -70,16 +72,16 @@ function buildDashboardPayload(
   options: { syncedAt?: string; bronnen?: SourceCheckResult[]; preview?: boolean } = {}
 ): DashboardData {
   const syncedAt = options.syncedAt ?? new Date().toISOString();
-  const primary = stations.primary;
-  const hasLive = primary != null;
+  const fused = stations.fused;
+  const hasLive = fused != null;
 
-  let speedMs = primary?.latest.speed?.value ?? 0;
-  let gustMs = primary?.latest.gust?.value ?? speedMs * 1.25;
-  let directionDeg = primary?.latest.direction?.value ?? 270;
-  const ageMinutes = primary?.ageMinutes ?? null;
-  const observationTimestamp = primary?.latest.speed?.timestamp ?? null;
+  let speedMs = fused?.speedMs ?? 0;
+  let gustMs = fused?.gustMs ?? speedMs * 1.25;
+  let directionDeg = fused?.directionDeg ?? 270;
+  const ageMinutes = fused?.ageMinutes ?? null;
+  const observationTimestamp = fused?.observationTimestamp ?? null;
 
-  const historyData = primary?.history ?? [];
+  const historyData = fused?.history ?? stations.primary?.history ?? [];
   attachObservationHistory(models, historyData);
 
   if (!hasLive && models.length > 0) {
@@ -114,6 +116,7 @@ function buildDashboardPayload(
     trend,
     hasLiveData: hasLive,
     usedFallbackStation: stations.usedFallback,
+    combinedRwsSources: stations.combinedSources,
   });
 
   const safety = assessSafety({
@@ -140,8 +143,11 @@ function buildDashboardPayload(
       formatted: formatWindSpeed(speedMs),
       ageMinutes,
       freshness: freshnessLevel(ageMinutes),
-      station: primary,
+      station: stations.primary,
       usedFallback: stations.usedFallback,
+      combinedSources: stations.combinedSources,
+      sourceLabel: fused?.sourceLabel ?? null,
+      contributors: fused?.contributors ?? [],
     },
     decision: {
       status: safety.status,
@@ -165,18 +171,21 @@ function buildDashboardPayload(
       modelCount: models.length,
       fusionPointCount: fusion.points.length,
       preview: options.preview ?? false,
+      rwsSourceCount: fused?.sourceCount ?? 0,
+      combinedSources: stations.combinedSources,
     },
   };
 }
 
 const EMPTY_STATIONS: StationSelection = {
+  fused: null,
   primary: null,
   fallbacks: [],
   all: [],
   usedFallback: false,
+  combinedSources: false,
 };
 
-/** Snelle voorspelling zonder RWS (voor progressive loading) */
 export async function getForecastPreviewData(
   riderWeight: RiderWeight = "medium"
 ): Promise<DashboardData> {

@@ -44,6 +44,7 @@ export const UI = {
   direction: "Richting",
   windFrom: "Wind uit",
   windTo: "Waait naar",
+  combinedSources: "Gecombineerd",
   windRose: "Windroos",
   offshoreWind: "Aflandige wind",
   offshoreHint: "Geen kite-advies bij aflandige wind",

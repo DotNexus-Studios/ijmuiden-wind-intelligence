@@ -15,6 +15,9 @@ interface LivePollResponse {
   freshness: "green" | "orange" | "red";
   hasLive: boolean;
   usedFallback: boolean;
+  combinedSources?: boolean;
+  sourceLabel?: string | null;
+  contributors?: DashboardData["live"]["contributors"];
   rwsError?: string | null;
   station: DashboardData["live"]["station"];
   live: {
@@ -115,6 +118,9 @@ export function useDashboardData(weight: RiderWeight) {
             freshness: liveData.freshness,
             station: liveData.station,
             usedFallback: liveData.usedFallback,
+            combinedSources: liveData.combinedSources ?? prev.live.combinedSources,
+            sourceLabel: liveData.sourceLabel ?? prev.live.sourceLabel,
+            contributors: liveData.contributors ?? prev.live.contributors,
           },
         };
       });

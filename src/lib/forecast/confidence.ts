@@ -9,6 +9,7 @@ export interface ConfidenceInput {
   directionShiftDeg?: number;
   hasLiveData: boolean;
   usedFallbackStation: boolean;
+  combinedRwsSources?: boolean;
 }
 
 export interface ConfidenceResult {
@@ -58,7 +59,12 @@ export function computeConfidence(input: ConfidenceInput): ConfidenceResult {
 
   if (input.usedFallbackStation) {
     score -= 8;
-    factors.push({ label: "Fallback-station actief", impact: -8 });
+    factors.push({ label: "Slechts een RWS-station beschikbaar", impact: -8 });
+  }
+
+  if (input.combinedRwsSources) {
+    score += 6;
+    factors.push({ label: "Twee RWS-stations gecombineerd", impact: 6 });
   }
 
   score = Math.max(0, Math.min(100, Math.round(score)));
