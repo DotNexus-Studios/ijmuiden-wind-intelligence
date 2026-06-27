@@ -2,7 +2,6 @@ import { fuseWindObservations } from "@/lib/fusion/engine";
 import type { FusedLiveWind, WindObservation } from "@/lib/fusion/types";
 import { cameraAiProvider, wundergroundProvider } from "@/lib/providers/stub-adapters";
 import { knmiEdrProvider, knmiOpenDataProvider } from "@/lib/providers/knmi-adapter";
-import { metarProvider } from "@/lib/providers/metar-adapter";
 import { rwsProvider } from "@/lib/providers/rws-adapter";
 import type { WindProvider } from "@/lib/providers/types";
 import { wowProvider } from "@/lib/providers/wow-adapter";
@@ -11,7 +10,6 @@ export const ALL_PROVIDERS: WindProvider[] = [
   rwsProvider,
   knmiEdrProvider,
   knmiOpenDataProvider,
-  metarProvider,
   wowProvider,
   cameraAiProvider,
   wundergroundProvider,

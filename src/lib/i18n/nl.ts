@@ -82,6 +82,7 @@ export const UI = {
   loadingPreview: "Voorspelling",
   tryAgain: "Opnieuw proberen",
   refresh: "Vernieuwen",
+  advice: "Advies",
   kite: "Kite",
   tomorrow: "Morgen",
   safeToGo: "Veilig om te gaan",

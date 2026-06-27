@@ -10,16 +10,18 @@ import { StickyDecisionBar } from "@/components/dashboard/sticky-bar";
 import { LoadingBanner } from "@/components/dashboard/loading-banner";
 import { SportSwitcher } from "@/components/dashboard/sport-switcher";
 import { useSport } from "@/components/dashboard/sport-context";
+import { SafetyCheck } from "@/components/dashboard/sections";
 import {
   ChartCardSkeleton,
   ForecastOverviewSkeleton,
   HeroCardSkeleton,
+  SafetyCheckSkeleton,
   StickyBarSkeleton,
 } from "@/components/dashboard/dashboard-skeletons";
 import { UI } from "@/lib/i18n/nl";
 import type { RiderWeight } from "@/lib/watersport/kite-size";
 import { useDashboardData } from "@/hooks/use-dashboard-data";
-import { AlertCircle, Waves } from "lucide-react";
+import { AlertCircle, RefreshCw, Waves } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { NavMenu } from "@/components/dashboard/nav-menu";
@@ -49,12 +51,24 @@ export function Dashboard() {
 
       <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
         <SportSwitcher value={sport} onChange={setSport} />
-        <Link
-          href="/intelligence"
-          className="text-xs font-semibold text-primary hover:underline shrink-0"
-        >
-          {UI.dataIntelligence} →
-        </Link>
+        <div className="flex items-center gap-2 shrink-0">
+          <Button
+            variant="outline"
+            size="icon"
+            className="h-8 w-8"
+            onClick={() => refresh()}
+            disabled={loading || polling}
+            aria-label={UI.refresh}
+          >
+            <RefreshCw className={`h-4 w-4 ${loading || polling ? "animate-spin" : ""}`} />
+          </Button>
+          <Link
+            href="/intelligence"
+            className="text-xs font-semibold text-primary hover:underline"
+          >
+            {UI.dataIntelligence} →
+          </Link>
+        </div>
       </div>
 
       <div className="pb-24 space-y-4 min-w-0 max-w-full">
@@ -90,16 +104,12 @@ export function Dashboard() {
             <ChartCardSkeleton title={UI.forecastFused} />
           )}
         </div>
+
+        {data ? <SafetyCheck data={data} /> : <SafetyCheckSkeleton />}
       </div>
 
       {data ? (
-        <StickyDecisionBar
-          data={data}
-          sport={sport}
-          riderWeight={weight}
-          onRefresh={refresh}
-          loading={loading || polling}
-        />
+        <StickyDecisionBar data={data} sport={sport} riderWeight={weight} />
       ) : (
         <StickyBarSkeleton />
       )}
