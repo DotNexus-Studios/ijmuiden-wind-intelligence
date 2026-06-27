@@ -1,0 +1,18 @@
+{
+  "name": "IJmuiden Wind Intelligence",
+  "short_name": "IJmuiden Wind",
+  "description": "Wind and water-sport decision dashboard for IJmuiden",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#071018",
+  "theme_color": "#071018",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/icon",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ]
+}
