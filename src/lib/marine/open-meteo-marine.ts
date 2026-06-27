@@ -8,6 +8,8 @@ export interface MarinePoint {
   swellHeightM: number;
   swellPeriodS: number;
   windWaveHeightM: number;
+  seaSurfaceTempC?: number;
+  seaLevelM?: number;
 }
 
 export async function fetchMarineForecast(hours = 72): Promise<MarinePoint[]> {
@@ -15,7 +17,7 @@ export async function fetchMarineForecast(hours = 72): Promise<MarinePoint[]> {
     latitude: String(IJMUIDEN_AAN_ZEE.lat),
     longitude: String(IJMUIDEN_AAN_ZEE.lon),
     hourly:
-      "wave_height,wave_period,wave_direction,swell_wave_height,swell_wave_period,swell_wave_direction,wind_wave_height",
+      "wave_height,wave_period,wave_direction,swell_wave_height,swell_wave_period,swell_wave_direction,wind_wave_height,sea_surface_temperature,sea_level_height_msl",
     timezone: "Europe/Amsterdam",
     forecast_days: String(Math.ceil(hours / 24) + 1),
   });
@@ -37,6 +39,8 @@ export async function fetchMarineForecast(hours = 72): Promise<MarinePoint[]> {
       swell_wave_height?: number[];
       swell_wave_period?: number[];
       wind_wave_height?: number[];
+      sea_surface_temperature?: number[];
+      sea_level_height_msl?: number[];
     };
   };
 
@@ -57,6 +61,8 @@ export async function fetchMarineForecast(hours = 72): Promise<MarinePoint[]> {
       swellHeightM: h.swell_wave_height?.[i] ?? 0,
       swellPeriodS: h.swell_wave_period?.[i] ?? 0,
       windWaveHeightM: h.wind_wave_height?.[i] ?? 0,
+      seaSurfaceTempC: h.sea_surface_temperature?.[i],
+      seaLevelM: h.sea_level_height_msl?.[i],
     });
   }
 

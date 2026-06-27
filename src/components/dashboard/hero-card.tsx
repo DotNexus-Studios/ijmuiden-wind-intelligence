@@ -75,7 +75,18 @@ export function CurrentConditionsCard({
 
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_auto] items-start min-w-0">
         <div className="min-w-0 order-2 lg:order-1">
-          <StatusBadge status={displayStatus} size="hero" />
+          <StatusBadge
+            status={displayStatus}
+            size="hero"
+            label={snapshot.pumpCall ? snapshot.statusLabel : undefined}
+          />
+          {(sport === "wingfoil" || sport === "kite" || sport === "windsurf") && (
+            <p className="text-sm font-semibold text-slate-700 mt-3">
+              {sport === "wingfoil" && snapshot.setupDetails
+                ? `${UI.wingSetup}: ${snapshot.setupDetails}`
+                : `${UI.range}: ${snapshot.equipment}`}
+            </p>
+          )}
           <div className="mt-5 max-w-sm w-full">
             <div className="flex items-center justify-between text-sm mb-1.5">
               <span className="text-slate-500 font-medium">{UI.confidence}</span>

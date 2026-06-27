@@ -132,6 +132,13 @@ export const UI = {
   menuDashboardHint: "Sportdashboard met directe beslissing",
   menuIntelligenceHint: "Sensoren, modellen, tabellen en debug",
   menuFooter: "IJmuiden Wind Intelligence · IJmuiderstrand",
+  pumpCall: "POMPEN!",
+  waterInfo: "Water info",
+  tide: "Getij",
+  waterTemp: "Watertemperatuur",
+  waveInterval: "Tijd tussen golven",
+  wingSetup: "Optimale setup",
+  windsurf: "Windsurf",
   backToDashboard: "Terug naar dashboard",
 } as const;
 

@@ -17,7 +17,12 @@ export function SportProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     const stored = localStorage.getItem(STORAGE_KEY) as SportId | null;
-    if (stored === "kite" || stored === "wingfoil" || stored === "surf") {
+    if (
+      stored === "kite" ||
+      stored === "wingfoil" ||
+      stored === "windsurf" ||
+      stored === "surf"
+    ) {
       setSportState(stored);
     }
   }, []);

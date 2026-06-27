@@ -2,11 +2,12 @@
 
 import { cn } from "@/lib/utils";
 import { SPORT_LABELS, type SportId } from "@/lib/watersport/sports";
-import { Wind, Waves, Zap } from "lucide-react";
+import { Sailboat, Wind, Waves, Zap } from "lucide-react";
 
 const SPORTS: Array<{ id: SportId; icon: typeof Wind }> = [
   { id: "kite", icon: Wind },
   { id: "wingfoil", icon: Zap },
+  { id: "windsurf", icon: Sailboat },
   { id: "surf", icon: Waves },
 ];
 
@@ -20,7 +21,7 @@ export function SportSwitcher({ value, onChange, className }: SportSwitcherProps
   return (
     <div
       className={cn(
-        "inline-flex p-1 rounded-xl bg-slate-100 border border-slate-200 gap-0.5 min-w-0",
+        "inline-flex p-1 rounded-xl bg-slate-100 border border-slate-200 gap-0.5 min-w-0 max-w-full overflow-x-auto",
         className
       )}
       role="tablist"
@@ -34,7 +35,7 @@ export function SportSwitcher({ value, onChange, className }: SportSwitcherProps
           aria-selected={value === id}
           onClick={() => onChange(id)}
           className={cn(
-            "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors whitespace-nowrap",
+            "flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-lg text-[11px] sm:text-xs font-semibold transition-colors whitespace-nowrap shrink-0",
             value === id
               ? "bg-white text-primary shadow-sm"
               : "text-slate-500 hover:text-slate-800"

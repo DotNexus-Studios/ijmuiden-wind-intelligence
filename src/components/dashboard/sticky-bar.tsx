@@ -50,7 +50,12 @@ export function StickyDecisionBar({
         <div className="grid grid-cols-4 items-center gap-2 text-center min-w-0">
           <div className="min-w-0 flex flex-col items-center gap-0.5">
             <p className="text-[9px] text-muted-foreground uppercase">{UI.advice}</p>
-            <StatusBadge status={displayStatus} size="sm" className="!text-[9px] sm:!text-[10px]" />
+            <StatusBadge
+              status={displayStatus}
+              size="sm"
+              label={snapshot.pumpCall ? snapshot.statusLabel : undefined}
+              className="!text-[9px] sm:!text-[10px]"
+            />
           </div>
           <Inline label={UI.wind} value={`${live.formatted.knots} kn`} />
           <Inline

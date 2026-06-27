@@ -23,20 +23,23 @@ interface StatusBadgeProps {
   status: GoStatus;
   size?: "sm" | "lg" | "hero";
   className?: string;
+  label?: string;
 }
 
-export function StatusBadge({ status, size = "lg", className }: StatusBadgeProps) {
+export function StatusBadge({ status, size = "lg", className, label }: StatusBadgeProps) {
+  const text = label ?? STATUS_LABELS[status];
+
   if (size === "hero") {
     return (
       <span
         className={cn(
           "font-bold tracking-tight leading-none block max-w-full",
           STATUS_TEXT[status],
-          "text-4xl sm:text-7xl lg:text-8xl",
+          label === UI.pumpCall ? "text-3xl sm:text-6xl lg:text-7xl" : "text-4xl sm:text-7xl lg:text-8xl",
           className
         )}
       >
-        {STATUS_LABELS[status]}
+        {text}
       </span>
     );
   }
@@ -57,7 +60,7 @@ export function StatusBadge({ status, size = "lg", className }: StatusBadgeProps
         className
       )}
     >
-      {STATUS_LABELS[status]}
+      {text}
     </span>
   );
 }

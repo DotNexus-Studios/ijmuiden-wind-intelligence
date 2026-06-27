@@ -11,6 +11,7 @@ import { LoadingBanner } from "@/components/dashboard/loading-banner";
 import { SportSwitcher } from "@/components/dashboard/sport-switcher";
 import { useSport } from "@/components/dashboard/sport-context";
 import { SafetyCheck } from "@/components/dashboard/sections";
+import { WaterInfoCard } from "@/components/dashboard/water-info-card";
 import {
   ChartCardSkeleton,
   ForecastOverviewSkeleton,
@@ -92,6 +93,8 @@ export function Dashboard() {
             <ChartCardSkeleton title={UI.forecastFused} />
           )}
         </div>
+
+        {data ? <WaterInfoCard data={data} /> : null}
 
         {data ? <SafetyCheck data={data} /> : <SafetyCheckSkeleton />}
       </div>

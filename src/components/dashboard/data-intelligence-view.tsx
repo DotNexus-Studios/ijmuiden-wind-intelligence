@@ -19,6 +19,7 @@ import {
   DebugDrawer,
 } from "@/components/dashboard/sections";
 import { SurfConditionsCard } from "@/components/dashboard/surf-card";
+import { WaterInfoCard } from "@/components/dashboard/water-info-card";
 import { StationInfoCard } from "@/components/dashboard/hero-card";
 import { SportSwitcher } from "@/components/dashboard/sport-switcher";
 import { useSport } from "@/components/dashboard/sport-context";
@@ -80,6 +81,8 @@ export function DataIntelligenceView({
         <SafetyCheck data={data} />
         <KiteCalculator data={data} weight={riderWeight} onWeightChange={onWeightChange} />
       </div>
+
+      <WaterInfoCard data={data} />
 
       <div className="grid lg:grid-cols-2 gap-4 min-w-0">
         <SurfConditionsCard data={data} />

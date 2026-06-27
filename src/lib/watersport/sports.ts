@@ -1,21 +1,29 @@
-import { STATUS_LABELS } from "@/lib/i18n/nl";
+import { STATUS_LABELS, UI } from "@/lib/i18n/nl";
 import type { DashboardData } from "@/lib/dashboard";
 import type { FusedForecastPoint } from "@/lib/weather-models/types";
 import { msToKnots } from "@/lib/units/wind";
 import type { RiderWeight } from "@/lib/watersport/kite-size";
 import { assessSafety, type GoStatus } from "@/lib/watersport/safety";
-import { assessWingfoil, recommendWingSize, WING_GO_WIND_KN } from "@/lib/watersport/wingfoil";
+import {
+  assessWingfoil,
+  recommendWingfoilSetup,
+  WING_GO_WIND_KN,
+} from "@/lib/watersport/wingfoil";
+import { assessWindsurf, recommendSailSize, WINDSURF_GO_WIND_KN } from "@/lib/watersport/windsurf";
 import { scoreSurfPoint, type SurfAssessment, type SurfStatus } from "@/lib/watersport/surf";
 
-export type SportId = "kite" | "wingfoil" | "surf";
+export type SportId = "kite" | "wingfoil" | "windsurf" | "surf";
 
 export const SPORT_LABELS: Record<SportId, string> = {
   kite: "Kite",
   wingfoil: "Wing foil",
+  windsurf: "Windsurf",
   surf: "Surf",
 };
 
 export const KITE_GO_WIND_KN = { minKn: 10, maxKn: 28 } as const;
+
+export const PUMP_SPORTS: SportId[] = ["kite", "wingfoil"];
 
 export interface SportSnapshot {
   sport: SportId;
@@ -25,7 +33,8 @@ export interface SportSnapshot {
   explanation: string;
   warnings: string[];
   equipment: string;
-  /** Wind kn (surf: optioneel secundair) */
+  setupDetails?: string;
+  pumpCall?: boolean;
   windKt?: number;
   gustKt?: number;
   waveHeightCm?: number;
@@ -42,10 +51,17 @@ function surfStatusLabel(status: SurfStatus): string {
   return map[status];
 }
 
+function goStatusLabel(sport: SportId, status: GoStatus): string {
+  if (PUMP_SPORTS.includes(sport) && status === "GO") return UI.pumpCall;
+  return STATUS_LABELS[status];
+}
+
 export function getSportWindGoRange(sport: SportId): { minKn: number; maxKn: number } {
   switch (sport) {
     case "wingfoil":
       return WING_GO_WIND_KN;
+    case "windsurf":
+      return WINDSURF_GO_WIND_KN;
     case "surf":
       return { minKn: 0, maxKn: 999 };
     default:
@@ -79,28 +95,52 @@ export function buildSportSnapshots(
     confidence,
     riderWeight,
   });
-  const wing = recommendWingSize(live.speedMs, riderWeight);
+  const wingSetup = recommendWingfoilSetup(live.speedMs, riderWeight);
+
+  const windsurfSafety = assessWindsurf({
+    windSpeedMs: live.speedMs,
+    gustMs: live.gustMs,
+    directionDeg: live.directionDeg,
+    trend: live.trend,
+    confidence,
+    riderWeight,
+  });
+  const sail = recommendSailSize(live.speedMs, riderWeight);
 
   return {
     kite: {
       sport: "kite",
       status: kiteSafety.status,
-      statusLabel: STATUS_LABELS[kiteSafety.status],
+      statusLabel: goStatusLabel("kite", kiteSafety.status),
       confidence,
       explanation: kiteSafety.explanation,
       warnings: kiteSafety.warnings,
       equipment: kite.range,
+      pumpCall: kiteSafety.status === "GO",
       windKt,
       gustKt,
     },
     wingfoil: {
       sport: "wingfoil",
       status: wingSafety.status,
-      statusLabel: STATUS_LABELS[wingSafety.status],
+      statusLabel: goStatusLabel("wingfoil", wingSafety.status),
       confidence,
       explanation: wingSafety.explanation,
       warnings: wingSafety.warnings,
-      equipment: wing.range,
+      equipment: wingSetup.wing.range,
+      setupDetails: wingSetup.summary,
+      pumpCall: wingSafety.status === "GO",
+      windKt,
+      gustKt,
+    },
+    windsurf: {
+      sport: "windsurf",
+      status: windsurfSafety.status,
+      statusLabel: STATUS_LABELS[windsurfSafety.status],
+      confidence,
+      explanation: windsurfSafety.explanation,
+      warnings: windsurfSafety.warnings,
+      equipment: sail.range,
       windKt,
       gustKt,
     },
@@ -144,7 +184,13 @@ export function assessForecastPointForSport(
     return status;
   }
 
-  const assess = sport === "wingfoil" ? assessWingfoil : assessSafety;
+  const assess =
+    sport === "wingfoil"
+      ? assessWingfoil
+      : sport === "windsurf"
+        ? assessWindsurf
+        : assessSafety;
+
   return assess({
     windSpeedMs: point.speedMs,
     gustMs: point.gustMs,

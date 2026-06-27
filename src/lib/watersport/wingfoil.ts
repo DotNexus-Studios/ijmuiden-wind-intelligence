@@ -10,6 +10,14 @@ export interface WingSizeResult {
   notes: string;
 }
 
+export interface WingfoilSetupResult {
+  wing: WingSizeResult;
+  foilCm2: number;
+  foilLabel: string;
+  mastCm: number;
+  summary: string;
+}
+
 const WEIGHT_KG: Record<RiderWeight, number> = {
   light: 65,
   medium: 80,
@@ -48,6 +56,37 @@ export function recommendWingSize(
         : knots > 28
           ? "Harde wind - kleine wing, alleen voor ervaren riders."
           : `Geschikt wingbereik voor ${WEIGHT_LABELS[weight].toLowerCase()} riders (${kg} kg).`,
+  };
+}
+
+export function recommendWingfoilSetup(
+  windSpeedMs: number,
+  weight: RiderWeight = "medium"
+): WingfoilSetupResult {
+  const wing = recommendWingSize(windSpeedMs, weight);
+  const knots = msToKnots(windSpeedMs);
+
+  let foilCm2: number;
+  if (knots < 12) {
+    foilCm2 = weight === "heavy" ? 2000 : weight === "light" ? 2200 : 2100;
+  } else if (knots < 16) {
+    foilCm2 = weight === "heavy" ? 1800 : weight === "light" ? 1700 : 1750;
+  } else if (knots < 20) {
+    foilCm2 = weight === "heavy" ? 1500 : 1400;
+  } else if (knots < 25) {
+    foilCm2 = weight === "light" ? 1200 : 1250;
+  } else {
+    foilCm2 = 1000;
+  }
+
+  const mastCm = knots < 14 ? 75 : knots < 22 ? 75 : 60;
+
+  return {
+    wing,
+    foilCm2,
+    foilLabel: `${foilCm2} cm²`,
+    mastCm,
+    summary: `${wing.primary} wing · ${foilCm2} cm² foil · ${mastCm} cm mast`,
   };
 }
 

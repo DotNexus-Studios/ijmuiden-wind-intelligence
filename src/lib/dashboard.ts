@@ -4,6 +4,7 @@ import { attachObservationHistory, fuseForecasts } from "@/lib/forecast/fusion";
 import { computeLiveWindMargin, type LiveWindMargin } from "@/lib/fusion/live-margin";
 import type { FusedContributor, FusedRealtimeWind } from "@/lib/fusion/types";
 import { fetchMarineForecast, type MarinePoint } from "@/lib/marine/open-meteo-marine";
+import { buildWaterInfo, type WaterInfo } from "@/lib/marine/water-info";
 import { freshnessLevel } from "@/lib/rws/client";
 import {
   discoverAndFetchStations,
@@ -14,7 +15,8 @@ import { computeTrend, formatWindSpeed, type WindTrend } from "@/lib/units/wind"
 import { fetchAllModels } from "@/lib/weather-models/open-meteo-base";
 import type { FusedForecastPoint, ModelForecast } from "@/lib/weather-models/types";
 import { recommendKiteSize, type RiderWeight } from "@/lib/watersport/kite-size";
-import { recommendWingSize } from "@/lib/watersport/wingfoil";
+import { recommendWingSize, recommendWingfoilSetup } from "@/lib/watersport/wingfoil";
+import { recommendSailSize } from "@/lib/watersport/windsurf";
 import { fetchFusedRealtimeWind } from "@/lib/fusion/service";
 import { assessSafety, type GoStatus, type SafetyAssessment } from "@/lib/watersport/safety";
 import { buildSurfAssessment, type SurfAssessment } from "@/lib/watersport/surf";
@@ -61,6 +63,9 @@ export interface DashboardData {
   wing: ReturnType<typeof recommendWingSize>;
   safety: SafetyAssessment;
   surf: SurfAssessment;
+  water: WaterInfo;
+  wingSetup: ReturnType<typeof recommendWingfoilSetup>;
+  sail: ReturnType<typeof recommendSailSize>;
   stations: StationReading[];
   fusion: FusedRealtimeWind | null;
   raw: Record<string, unknown>;
@@ -153,6 +158,8 @@ function buildDashboardPayload(
 
   const kite = recommendKiteSize(speedMs, riderWeight);
   const wing = recommendWingSize(speedMs, riderWeight);
+  const wingSetup = recommendWingfoilSetup(speedMs, riderWeight);
+  const sail = recommendSailSize(speedMs, riderWeight);
   const liveMargin = computeLiveWindMargin(realtimeFusion, speedMs);
   const surf = buildSurfAssessment(
     marinePoints,
@@ -163,6 +170,7 @@ function buildDashboardPayload(
     })),
     { speedMs, directionDeg }
   );
+  const water = buildWaterInfo(marinePoints);
 
   const allWarnings = [...safety.warnings, ...(realtimeFusion?.warnings ?? [])];
 
@@ -204,8 +212,11 @@ function buildDashboardPayload(
     },
     kite,
     wing,
+    wingSetup,
+    sail,
     safety,
     surf,
+    water,
     stations: stations.all,
     fusion: realtimeFusion,
     raw: {
