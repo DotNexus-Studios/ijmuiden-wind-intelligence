@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import type { LoadPhase } from "@/components/dashboard/loading-banner";
 import type { DashboardData } from "@/lib/dashboard";
 import type { RiderWeight } from "@/lib/watersport/kite-size";
 import { UI } from "@/lib/i18n/nl";
@@ -14,6 +15,7 @@ interface LivePollResponse {
   freshness: "green" | "orange" | "red";
   hasLive: boolean;
   usedFallback: boolean;
+  rwsError?: string | null;
   station: DashboardData["live"]["station"];
   live: {
     speedMs: number;
@@ -26,14 +28,16 @@ interface LivePollResponse {
 
 export function useDashboardData(weight: RiderWeight) {
   const [data, setData] = useState<DashboardData | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [phase, setPhase] = useState<LoadPhase>("initial");
   const [polling, setPolling] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [newMeasurement, setNewMeasurement] = useState(false);
   const lastObservationRef = useRef<string | null>(null);
 
   const fetchFull = useCallback(async (silent = false) => {
-    if (!silent) setLoading(true);
+    if (!silent) {
+      setPhase((p) => (p === "complete" ? "forecast" : p === "error" ? "initial" : p));
+    }
     setError(null);
     try {
       const res = await fetch(`/api/dashboard?weight=${weight}`, { cache: "no-store" });
@@ -43,12 +47,34 @@ export function useDashboardData(weight: RiderWeight) {
         lastObservationRef.current = json.observationTimestamp;
       }
       setData(json);
+      setPhase("complete");
     } catch (e) {
-      if (!silent) setError(e instanceof Error ? e.message : UI.loadError);
-    } finally {
-      if (!silent) setLoading(false);
+      if (!silent) {
+        setError(e instanceof Error ? e.message : UI.loadError);
+        setPhase("error");
+      } else {
+        setPhase((prev) => (prev === "forecast" ? "forecast" : prev));
+      }
     }
   }, [weight]);
+
+  const loadProgressive = useCallback(async () => {
+    setPhase("initial");
+    setError(null);
+
+    try {
+      const forecastRes = await fetch(`/api/forecast?weight=${weight}`, { cache: "no-store" });
+      if (forecastRes.ok) {
+        const preview = (await forecastRes.json()) as DashboardData;
+        setData(preview);
+        setPhase("forecast");
+      }
+    } catch {
+      // voorspelling mislukt, volledige load probeert alsnog
+    }
+
+    await fetchFull(true);
+  }, [weight, fetchFull]);
 
   const pollLive = useCallback(async () => {
     setPolling(true);
@@ -70,11 +96,12 @@ export function useDashboardData(weight: RiderWeight) {
         if (isNewReading) setNewMeasurement(true);
 
         if (!liveData.live) {
-          return { ...prev, syncedAt: liveData.fetchedAt };
+          return { ...prev, syncedAt: liveData.fetchedAt, preview: false };
         }
 
         return {
           ...prev,
+          preview: false,
           syncedAt: liveData.fetchedAt,
           observationTimestamp: obs ?? prev.observationTimestamp,
           live: {
@@ -97,8 +124,8 @@ export function useDashboardData(weight: RiderWeight) {
   }, []);
 
   useEffect(() => {
-    fetchFull();
-  }, [fetchFull]);
+    loadProgressive();
+  }, [loadProgressive]);
 
   useEffect(() => {
     const interval = setInterval(pollLive, POLL_INTERVAL_MS);
@@ -112,17 +139,18 @@ export function useDashboardData(weight: RiderWeight) {
   }, [newMeasurement]);
 
   const refresh = useCallback(async () => {
-    await fetchFull(true);
+    await loadProgressive();
     await pollLive();
-  }, [fetchFull, pollLive]);
+  }, [loadProgressive, pollLive]);
 
   return {
     data,
-    loading,
+    phase,
+    loading: phase !== "complete",
     polling,
     error,
     newMeasurement,
     refresh,
-    fetchFull,
+    fetchFull: loadProgressive,
   };
 }

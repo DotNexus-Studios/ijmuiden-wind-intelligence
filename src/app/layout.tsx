@@ -48,7 +48,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="nl" className={`${syne.variable} ${dmSans.variable} h-full`}>
-      <body className="min-h-full flex flex-col font-[family-name:var(--font-body)] bg-background text-foreground antialiased">
+      <body className="min-h-full flex flex-col font-[family-name:var(--font-body)] bg-background text-foreground antialiased overflow-x-hidden">
         {children}
       </body>
     </html>

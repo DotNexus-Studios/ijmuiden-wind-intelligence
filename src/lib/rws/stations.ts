@@ -82,12 +82,22 @@ export interface StationSelection {
   rwsError?: string;
 }
 
-export async function discoverAndFetchStations(): Promise<StationSelection> {
+export interface DiscoverOptions {
+  batchTimeoutMs?: number;
+  perStationTimeoutMs?: number;
+  skipFallback?: boolean;
+}
+
+export async function discoverAndFetchStations(
+  options: DiscoverOptions = {}
+): Promise<StationSelection> {
+  const batchTimeout = options.batchTimeoutMs ?? 20_000;
+  const perStationTimeout = options.perStationTimeoutMs ?? 12_000;
   const codes = [...new Set(IJMUIDEN_STATIONS.map((s) => s.code))];
   let batchError: string | undefined;
 
   try {
-    const batch = await rwsClient.fetchLatestWindBatch(codes, { timeoutMs: 20_000 });
+    const batch = await rwsClient.fetchLatestWindBatch(codes, { timeoutMs: batchTimeout });
     const readings: StationReading[] = IJMUIDEN_STATIONS.map((station) => {
       const latest = rwsClient.parseLatestBatchForStation(batch, station.code);
       return {
@@ -105,11 +115,26 @@ export async function discoverAndFetchStations(): Promise<StationSelection> {
     batchError = rwsErrorMessage(err);
   }
 
+  if (options.skipFallback) {
+    const readings: StationReading[] = IJMUIDEN_STATIONS.map((station) => ({
+      station,
+      distanceKm: haversineKm(IJMUIDEN.lat, IJMUIDEN.lon, station.lat, station.lon),
+      latest: {},
+      history: [],
+      ageMinutes: null,
+      available: false,
+      error: batchError,
+    }));
+    const result = finalizeSelection(readings);
+    if (batchError) result.rwsError = batchError;
+    return result;
+  }
+
   const readings = await Promise.all(
     IJMUIDEN_STATIONS.map(async (station) => {
       try {
         const { latest, history } = await rwsClient.fetchWindBundle(station.code, 6, {
-          timeoutMs: 12_000,
+          timeoutMs: perStationTimeout,
         });
         return {
           station,

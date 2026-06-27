@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import type { ReactNode } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -13,6 +13,7 @@ import { SectionHeader } from "@/components/dashboard/section-header";
 import { StatusBadge } from "@/components/dashboard/wind-display";
 import { ChevronDown, Check, AlertTriangle } from "lucide-react";
 import type { DashboardData } from "@/lib/dashboard";
+import type { SourceCheckResult } from "@/lib/sources";
 import type { RiderWeight } from "@/lib/watersport/kite-size";
 import { UI, WEIGHT_LABELS } from "@/lib/i18n/nl";
 import { cn } from "@/lib/utils";
@@ -34,7 +35,7 @@ export function KiteCalculator({ data, weight, onWeightChange }: KiteCalculatorP
   const [water, setWater] = useState("sea");
 
   return (
-    <section className="dashboard-card p-5 sm:p-6 h-full">
+    <section className="dashboard-card p-5 sm:p-6 h-full min-w-0 max-w-full">
       <SectionHeader title={UI.kiteSize} />
       <div className="grid sm:grid-cols-2 gap-3 mb-5">
         <Field label="Gewicht">
@@ -128,7 +129,7 @@ export function SafetyCheck({ data }: { data: DashboardData }) {
   };
 
   return (
-    <section className="dashboard-card p-5 sm:p-6 h-full">
+    <section className="dashboard-card p-5 sm:p-6 h-full min-w-0 max-w-full">
       <SectionHeader title={UI.safetyDetails} />
       <div
         className={cn(
@@ -222,10 +223,43 @@ export function StationDetails({ data }: { data: DashboardData }) {
   );
 }
 
-export function DataSourcesPanel({ data }: { data: DashboardData }) {
+export function DataSourcesPanel() {
   const [open, setOpen] = useState(false);
-  const rws = data.bronnen.filter((b) => b.type === "rws");
-  const forecast = data.bronnen.filter((b) => b.type === "forecast");
+  const [bronnen, setBronnen] = useState<SourceCheckResult[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [loaded, setLoaded] = useState(false);
+
+  useEffect(() => {
+    if (!open || loaded) return;
+    let cancelled = false;
+    setLoading(true);
+    fetch("/api/bronnen", { cache: "no-store" })
+      .then((res) => res.json())
+      .then((json) => {
+        if (cancelled) return;
+        const list = (json.sources ?? json.summary?.rws ?? []) as SourceCheckResult[];
+        if (Array.isArray(json.sources)) {
+          setBronnen(json.sources);
+        } else if (json.summary) {
+          setBronnen([...(json.summary.rws ?? []), ...(json.summary.voorspelling ?? [])]);
+        } else {
+          setBronnen(list);
+        }
+        setLoaded(true);
+      })
+      .catch(() => {
+        if (!cancelled) setBronnen([]);
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [open, loaded]);
+
+  const rws = bronnen.filter((b) => b.type === "rws");
+  const forecast = bronnen.filter((b) => b.type === "forecast");
 
   return (
     <Collapsible open={open} onOpenChange={setOpen}>
@@ -235,7 +269,12 @@ export function DataSourcesPanel({ data }: { data: DashboardData }) {
           <ChevronDown className={cn("h-4 w-4 text-slate-400 transition-transform", open && "rotate-180")} />
         </CollapsibleTrigger>
         <CollapsibleContent>
-          <div className="px-5 pb-5 space-y-4">
+          <div className="px-5 pb-5 space-y-4 min-w-0">
+            {loading && (
+              <p className="text-sm text-slate-500 animate-pulse">Databronnen controleren...</p>
+            )}
+            {!loading && (
+              <>
             <div>
               <p className="text-[10px] uppercase tracking-wide text-slate-400 mb-2 font-semibold">RWS live</p>
               {rws.map((s) => (
@@ -272,6 +311,8 @@ export function DataSourcesPanel({ data }: { data: DashboardData }) {
                 </div>
               ))}
             </div>
+              </>
+            )}
           </div>
         </CollapsibleContent>
       </div>

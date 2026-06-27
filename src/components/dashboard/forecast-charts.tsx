@@ -61,21 +61,21 @@ export function ForecastOverviewCard({ data }: { data: DashboardData }) {
   }, [data.forecast]);
 
   return (
-    <section className="dashboard-card p-5 sm:p-6 h-full">
+    <section className="dashboard-card p-5 sm:p-6 h-full min-w-0 max-w-full overflow-hidden">
       <SectionHeader
         title={UI.forecastOverview}
         action={
-          <Link href="#modellen" className="text-xs font-semibold text-primary hover:underline">
+          <Link href="#modellen" className="text-xs font-semibold text-primary hover:underline shrink-0">
             {UI.moreDetail}
           </Link>
         }
       />
-      <div className="overflow-x-auto -mx-1 px-1">
-        <div className="grid grid-flow-col auto-cols-[minmax(88px,1fr)] gap-2 min-w-max">
+      <div className="w-full min-w-0 overflow-x-auto overscroll-x-contain">
+        <div className="flex gap-2 w-max max-w-none pb-1">
           {items.map((point) => (
             <div
               key={`${point.displayLabel}-${point.time}`}
-              className="rounded-xl border border-slate-100 bg-slate-50/80 p-3 text-center"
+              className="w-[88px] shrink-0 rounded-xl border border-slate-100 bg-slate-50/80 p-3 text-center"
             >
               <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">
                 {point.displayLabel}
@@ -114,9 +114,9 @@ export function WindGustsChart({ data }: { data: DashboardData }) {
   }));
 
   return (
-    <section className="dashboard-card p-5 sm:p-6">
+    <section className="dashboard-card p-5 sm:p-6 min-w-0 max-w-full overflow-hidden">
       <SectionHeader title={UI.windGusts} action={<TimeRangeToggle options={["12H", "24H", "3D"]} value={range} onChange={setRange} />} />
-      <div className="h-52">
+      <div className="h-52 w-full min-w-0">
         <ResponsiveContainer width="100%" height="100%">
           <ComposedChart data={chartData} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
@@ -146,9 +146,9 @@ export function ForecastFusedChart({ data }: { data: DashboardData }) {
   }));
 
   return (
-    <section className="dashboard-card p-5 sm:p-6">
+    <section className="dashboard-card p-5 sm:p-6 min-w-0 max-w-full overflow-hidden">
       <SectionHeader title={UI.forecastFused} action={<TimeRangeToggle options={["24H", "3D", "5D"]} value={range} onChange={setRange} />} />
-      <div className="h-52">
+      <div className="h-52 w-full min-w-0">
         <ResponsiveContainer width="100%" height="100%">
           <ComposedChart data={chartData} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
@@ -188,17 +188,17 @@ export function ModelComparisonTable({ data }: { data: DashboardData }) {
   });
 
   return (
-    <section id="modellen" className="dashboard-card p-5 sm:p-6">
+    <section id="modellen" className="dashboard-card p-5 sm:p-6 min-w-0 max-w-full overflow-hidden">
       <SectionHeader
         title={UI.modelComparison}
         action={
-          <span className="text-[11px] text-slate-400">
+          <span className="text-[11px] text-slate-400 shrink-0">
             {UI.updated}: {formatObservationClock(data.syncedAt)}
           </span>
         }
       />
-      <div className="overflow-x-auto">
-        <table className="w-full text-sm min-w-[540px]">
+      <div className="w-full min-w-0 overflow-x-auto overscroll-x-contain">
+        <table className="w-full text-sm min-w-[480px]">
           <thead>
             <tr className="text-left text-[10px] uppercase tracking-wide text-slate-400 border-b border-slate-100">
               <th className="pb-2 font-semibold">Model</th>

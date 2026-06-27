@@ -15,7 +15,17 @@ import {
   DebugDrawer,
 } from "@/components/dashboard/sections";
 import { StickyDecisionBar } from "@/components/dashboard/sticky-bar";
-import { Skeleton } from "@/components/ui/skeleton";
+import { LoadingBanner } from "@/components/dashboard/loading-banner";
+import {
+  ChartCardSkeleton,
+  ForecastOverviewSkeleton,
+  HeroCardSkeleton,
+  KiteCalculatorSkeleton,
+  SafetyCheckSkeleton,
+  StationInfoSkeleton,
+  StickyBarSkeleton,
+  TableCardSkeleton,
+} from "@/components/dashboard/dashboard-skeletons";
 import { UI } from "@/lib/i18n/nl";
 import type { RiderWeight } from "@/lib/watersport/kite-size";
 import { useDashboardData } from "@/hooks/use-dashboard-data";
@@ -24,25 +34,11 @@ import { Button } from "@/components/ui/button";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
 
-function DashboardSkeleton() {
-  return (
-    <div className="space-y-4">
-      <Skeleton className="h-72 w-full rounded-2xl" />
-      <div className="grid lg:grid-cols-2 gap-4">
-        <Skeleton className="h-48 w-full rounded-2xl" />
-        <Skeleton className="h-48 w-full rounded-2xl" />
-      </div>
-    </div>
-  );
-}
-
 export function Dashboard() {
   const [weight, setWeight] = useState<RiderWeight>("medium");
-  const { data, loading, polling, error, newMeasurement, refresh } = useDashboardData(weight);
+  const { data, phase, loading, polling, error, newMeasurement, refresh } = useDashboardData(weight);
 
-  if (loading && !data) return <DashboardSkeleton />;
-
-  if (error && !data) {
+  if (phase === "error" && !data) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[50vh] p-6 text-center gap-4">
         <AlertCircle className="h-12 w-12 text-muted-foreground" />
@@ -53,45 +49,85 @@ export function Dashboard() {
     );
   }
 
-  if (!data) return null;
+  const hasForecast = data?.forecast.points.length;
 
   return (
     <>
-      <div className="pb-28 space-y-4">
-        <div className="grid xl:grid-cols-2 gap-4">
-          <CurrentConditionsCard data={data} newMeasurement={newMeasurement} />
-          <ForecastOverviewCard data={data} />
+      <LoadingBanner phase={phase} className="mb-4" />
+
+      <div className="pb-28 space-y-4 min-w-0 max-w-full">
+        <div className="grid xl:grid-cols-2 gap-4 min-w-0">
+          {data ? (
+            <CurrentConditionsCard data={data} newMeasurement={newMeasurement} loadingLive={loading} />
+          ) : (
+            <HeroCardSkeleton />
+          )}
+          {hasForecast && data ? (
+            <ForecastOverviewCard data={data} />
+          ) : (
+            <ForecastOverviewSkeleton />
+          )}
         </div>
 
-        <div className="grid lg:grid-cols-2 gap-4">
-          <WindGustsChart data={data} />
-          <ModelComparisonTable data={data} />
+        <div className="grid lg:grid-cols-2 gap-4 min-w-0">
+          {hasForecast && data ? (
+            <WindGustsChart data={data} />
+          ) : (
+            <ChartCardSkeleton title={UI.windGusts} />
+          )}
+          {hasForecast && data ? (
+            <ModelComparisonTable data={data} />
+          ) : (
+            <TableCardSkeleton />
+          )}
         </div>
 
-        <div className="grid lg:grid-cols-2 gap-4">
-          <ForecastFusedChart data={data} />
-          <KiteCalculator data={data} weight={weight} onWeightChange={setWeight} />
+        <div className="grid lg:grid-cols-2 gap-4 min-w-0">
+          {hasForecast && data ? (
+            <ForecastFusedChart data={data} />
+          ) : (
+            <ChartCardSkeleton title={UI.forecastFused} />
+          )}
+          {data ? (
+            <KiteCalculator data={data} weight={weight} onWeightChange={setWeight} />
+          ) : (
+            <KiteCalculatorSkeleton />
+          )}
         </div>
 
-        <div className="grid lg:grid-cols-2 gap-4">
-          <StationInfoCard data={data} />
-          <SafetyCheck data={data} />
+        <div className="grid lg:grid-cols-2 gap-4 min-w-0">
+          {data ? (
+            <StationInfoCard data={data} loadingLive={loading} />
+          ) : (
+            <StationInfoSkeleton />
+          )}
+          {data ? (
+            <SafetyCheck data={data} />
+          ) : (
+            <SafetyCheckSkeleton />
+          )}
         </div>
 
-        <details className="group">
-          <summary className="cursor-pointer text-xs text-slate-400 hover:text-slate-600 py-2 list-none flex items-center gap-1">
-            <span className="group-open:rotate-90 transition-transform inline-block">›</span>
-            Technische details & debug
-          </summary>
-          <div className="space-y-3 pt-2">
-            <StationDetails data={data} />
-            <DataSourcesPanel data={data} />
-            <DebugDrawer data={data} />
-          </div>
-        </details>
+        {data && (
+          <details className="group min-w-0">
+            <summary className="cursor-pointer text-xs text-slate-400 hover:text-slate-600 py-2 list-none flex items-center gap-1">
+              <span className="group-open:rotate-90 transition-transform inline-block">›</span>
+              Technische details & debug
+            </summary>
+            <div className="space-y-3 pt-2 min-w-0">
+              <StationDetails data={data} />
+              <DataSourcesPanel />
+              <DebugDrawer data={data} />
+            </div>
+          </details>
+        )}
       </div>
 
-      <StickyDecisionBar data={data} onRefresh={refresh} loading={loading || polling} />
+      {data ? (
+        <StickyDecisionBar data={data} onRefresh={refresh} loading={loading || polling} />
+      ) : (
+        <StickyBarSkeleton />
+      )}
     </>
   );
 }
@@ -106,25 +142,25 @@ const NAV = [
 export function DashboardHeader() {
   return (
     <header className="sticky top-0 z-40 border-b border-border bg-white/95 backdrop-blur-md shadow-sm">
-      <div className="max-w-7xl mx-auto px-4 py-3">
-        <div className="flex items-center justify-between gap-4">
-          <div className="flex items-center gap-3 min-w-0">
+      <div className="max-w-7xl mx-auto px-4 py-3 min-w-0">
+        <div className="flex items-center justify-between gap-3 min-w-0">
+          <div className="flex items-center gap-3 min-w-0 flex-1">
             <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 shrink-0">
               <Waves className="h-5 w-5 text-primary" />
             </div>
             <div className="min-w-0">
               <h1 className="text-sm font-bold tracking-wide uppercase truncate">{UI.appTitle}</h1>
-              <p className="text-[11px] text-muted-foreground hidden sm:block">{UI.appSubtitle}</p>
+              <p className="text-[11px] text-muted-foreground hidden sm:block truncate">{UI.appSubtitle}</p>
             </div>
           </div>
 
-          <nav className="hidden md:flex items-center gap-1">
+          <nav className="hidden md:flex items-center gap-1 shrink-0">
             {NAV.map((item) => (
               <button
                 key={item.id}
                 type="button"
                 className={cn(
-                  "px-3 py-1.5 text-sm font-medium rounded-lg transition-colors",
+                  "px-3 py-1.5 text-sm font-medium rounded-lg transition-colors whitespace-nowrap",
                   item.active
                     ? "text-primary bg-blue-50"
                     : "text-muted-foreground hover:text-foreground hover:bg-slate-50"

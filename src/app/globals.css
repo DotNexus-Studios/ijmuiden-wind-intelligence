@@ -93,10 +93,11 @@
     @apply border-border outline-ring/50;
   }
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground overflow-x-hidden;
   }
   html {
     font-family: var(--font-body), system-ui, sans-serif;
+    overflow-x: hidden;
   }
   h1, h2, h3, h4, h5, h6 {
     font-family: var(--font-display), system-ui, sans-serif;
@@ -108,7 +109,7 @@
 }
 
 .dashboard-card {
-  @apply bg-card border border-border/80 shadow-sm rounded-2xl;
+  @apply bg-card border border-border/80 shadow-sm rounded-2xl min-w-0 max-w-full;
 }
 
 .status-go-text { color: var(--status-go); }

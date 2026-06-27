@@ -22,9 +22,9 @@ export function StatusBadge({ status, size = "lg", className }: StatusBadgeProps
     return (
       <span
         className={cn(
-          "font-bold tracking-tight leading-none",
+          "font-bold tracking-tight leading-none block max-w-full",
           STATUS_TEXT[status],
-          "text-6xl sm:text-7xl lg:text-8xl",
+          "text-4xl sm:text-7xl lg:text-8xl",
           className
         )}
       >
