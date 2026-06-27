@@ -16,39 +16,18 @@ export interface StationDefinition {
 
 export const IJMUIDEN_STATIONS: StationDefinition[] = [
   {
-    code: "ijmuiden.buitenhaven",
-    name: "IJmuiden Buitenhaven",
-    lat: 52.459,
-    lon: 4.589,
+    code: "ijgeul.1",
+    name: "IJGeul, 1",
+    lat: 52.463943,
+    lon: 4.517596,
     priority: 1,
   },
   {
-    code: "ijmuiden",
-    name: "IJmuiden",
-    lat: 52.462,
-    lon: 4.595,
+    code: "ijmuiden.havenhoofd.zuid",
+    name: "IJmuiden, havenhoofd, zuid",
+    lat: 52.463693,
+    lon: 4.532283,
     priority: 2,
-  },
-  {
-    code: "ijmuiden.1erijksbinnenhaven",
-    name: "IJmuiden 1e Rijksbinnenhaven",
-    lat: 52.461,
-    lon: 4.592,
-    priority: 3,
-  },
-  {
-    code: "hoekvanholland",
-    name: "Hoek van Holland",
-    lat: 51.994,
-    lon: 4.12,
-    priority: 4,
-  },
-  {
-    code: "cadzand.2",
-    name: "Cadzand",
-    lat: 51.378,
-    lon: 3.372,
-    priority: 5,
   },
 ];
 

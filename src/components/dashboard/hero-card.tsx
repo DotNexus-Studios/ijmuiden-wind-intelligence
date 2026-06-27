@@ -27,7 +27,7 @@ export function CurrentConditionsCard({ data, newMeasurement, loadingLive }: Her
   const { decision, live } = data;
   const gustKt = Math.round(msToKnots(live.gustMs));
   const obsTime = data.observationTimestamp;
-  const stationName = live.station?.station.name ?? "IJmuiden Buitenhaven";
+  const stationName = live.station?.station.name ?? "IJGeul, 1";
   const awaitingLive = loadingLive || data.preview;
 
   return (
@@ -154,7 +154,7 @@ export function StationInfoCard({ data, loadingLive }: HeroCardProps) {
         )}
         <div className="space-y-2.5 text-sm min-w-0">
           <p className="font-semibold text-slate-800 truncate">
-            {awaitingLive && !station ? UI.loadingLive : `${station?.station.name ?? "IJmuiden Buitenhaven"} (RWS)`}
+            {awaitingLive && !station ? UI.loadingLive : `${station?.station.name ?? "IJGeul, 1"} (RWS)`}
           </p>
           <InfoRow label={UI.distance} value={`${(station?.distanceKm ?? 1.2).toFixed(1)} km`} />
           <InfoRow
