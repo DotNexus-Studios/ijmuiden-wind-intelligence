@@ -47,6 +47,7 @@ function shortTideLabel(data: DashboardData): string {
 export function getSportSubtitle(data: DashboardData, sport: SportId, awaitingLive: boolean): string {
   if (awaitingLive && !data.observationTimestamp) return UI.loadingPreview;
   if (sport === "surf") return UI.surfSpot;
+  if (sport === "kite" || sport === "wingfoil" || sport === "windsurf") return UI.spotLabel;
   const stationName = data.live.sourceLabel ?? data.live.station?.station.name ?? "IJGeul, 1";
   if (data.live.combinedSources) return `${UI.combinedSources}: ${stationName}`;
   return stationName;

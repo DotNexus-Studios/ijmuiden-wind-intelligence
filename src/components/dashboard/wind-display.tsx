@@ -4,6 +4,7 @@ import { useId } from "react";
 import { cn } from "@/lib/utils";
 import { STATUS_LABELS, TREND_LABELS, UI } from "@/lib/i18n/nl";
 import type { GoStatus } from "@/lib/watersport/safety";
+import { useAnimatedDegrees } from "@/hooks/use-animated-degrees";
 import {
   classifyWindDirectionQuality,
   compassPoint,
@@ -127,9 +128,10 @@ function sectorPath(cx: number, cy: number, r: number, startDeg: number, endDeg:
 interface WindCompassProps {
   /** Meteorologische richting: waar de wind vandaan komt */
   direction: number;
-  size?: "sm" | "md" | "lg" | "xl";
+  size?: "sm" | "md" | "lg" | "xl" | "2xl";
   showZones?: boolean;
   prominent?: boolean;
+  animated?: boolean;
   className?: string;
 }
 
@@ -138,11 +140,16 @@ export function WindCompass({
   size = "md",
   showZones = false,
   prominent = false,
+  animated = false,
   className,
 }: WindCompassProps) {
   const markerId = useId().replace(/:/g, "");
-  const fromDeg = normalizeWindFromDeg(direction);
-  const toDeg = windToDeg(fromDeg);
+  const targetFrom = normalizeWindFromDeg(direction);
+  const targetTo = windToDeg(targetFrom);
+  const animFrom = useAnimatedDegrees(targetFrom, animated ? 900 : 0);
+  const animTo = useAnimatedDegrees(targetTo, animated ? 900 : 0);
+  const fromDeg = animated ? animFrom : targetFrom;
+  const toDeg = animated ? animTo : targetTo;
   const quality = classifyWindDirectionQuality(fromDeg);
   const offshore = isOffshoreWind(fromDeg);
 
@@ -151,11 +158,14 @@ export function WindCompass({
     md: "w-24 h-24",
     lg: "w-40 h-40",
     xl: "w-44 h-44 sm:w-52 sm:h-52",
+    "2xl": "w-52 h-52 sm:w-60 sm:h-60 lg:w-72 lg:h-72",
   }[size];
 
-  const labelSize = size === "sm" ? "text-[7px]" : size === "md" ? "text-[8px]" : "text-[10px]";
-  const rim = size === "sm" ? 34 : size === "md" ? 38 : 46;
-  const arrowRim = size === "sm" ? 28 : size === "md" ? 32 : 40;
+  const labelSize =
+    size === "sm" ? "text-[7px]" : size === "md" ? "text-[8px]" : size === "2xl" ? "text-[11px]" : "text-[10px]";
+  const rim = size === "sm" ? 34 : size === "md" ? 38 : size === "2xl" ? 48 : 46;
+  const arrowRim = size === "sm" ? 28 : size === "md" ? 32 : size === "2xl" ? 44 : 40;
+  const strokeW = size === "sm" ? 2.5 : prominent || size === "2xl" ? 4.5 : 3.5;
 
   const fromPt = compassPoint(60, 60, arrowRim, fromDeg);
   const toPt = compassPoint(60, 60, arrowRim, toDeg);
@@ -173,23 +183,40 @@ export function WindCompass({
 
   return (
     <div className={cn("relative mx-auto flex flex-col items-center min-w-0", dims, className)}>
-      <svg viewBox="0 0 120 120" className="w-full h-full drop-shadow-sm" role="img" aria-label={`${UI.windFrom} ${fromLabel}, ${UI.windTo} ${toLabel}`}>
+      <svg
+        viewBox="0 0 120 120"
+        className={cn("w-full h-full", animated ? "drop-shadow-md" : "drop-shadow-sm")}
+        role="img"
+        aria-label={`${UI.windFrom} ${fromLabel}, ${UI.windTo} ${toLabel}`}
+      >
         <defs>
+          <linearGradient id={`wind-compass-bg-${markerId}`} x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stopColor="#f8fafc" />
+            <stop offset="100%" stopColor="#eff6ff" />
+          </linearGradient>
           <marker id={`wind-arrowhead-${markerId}`} markerWidth="8" markerHeight="8" refX="6" refY="4" orient="auto">
             <polygon points="0 0, 8 4, 0 8" fill={qualityColors.arrow} />
           </marker>
         </defs>
 
-        <circle cx="60" cy="60" r="52" className="fill-slate-50 stroke-slate-200" strokeWidth="2" />
+        <circle cx="60" cy="60" r="54" fill={`url(#wind-compass-bg-${markerId})`} className="stroke-slate-200/80" strokeWidth="1.5" />
+
+        {animated && (
+          <g className="wind-compass-orbit">
+            <circle cx="60" cy="60" r="50" fill="none" stroke="#93c5fd" strokeWidth="1" strokeDasharray="4 6" opacity="0.45" />
+          </g>
+        )}
+
+        <circle cx="60" cy="60" r="52" fill="none" className="stroke-slate-200" strokeWidth="2" />
 
         {(showZones || prominent) && (
           <>
-            <path d={sectorPath(60, 60, 50, 45, 135)} className="fill-red-100/70" />
-            <path d={sectorPath(60, 60, 50, 225, 315)} className="fill-emerald-100/70" />
+            <path d={sectorPath(60, 60, 50, 45, 135)} className="fill-red-100/70 transition-opacity duration-500" />
+            <path d={sectorPath(60, 60, 50, 225, 315)} className="fill-emerald-100/70 transition-opacity duration-500" />
           </>
         )}
 
-        <circle cx="60" cy="60" r="42" fill="none" className="stroke-slate-200" strokeWidth="1" strokeDasharray="3 3" />
+        <circle cx="60" cy="60" r="42" fill="none" className="stroke-slate-200/80" strokeWidth="1" strokeDasharray="3 4" />
 
         {COMPASS_LABELS.map(({ label, deg }) => {
           const pt = compassPoint(60, 60, rim, deg);
@@ -203,7 +230,7 @@ export function WindCompass({
               dominantBaseline="middle"
               className={cn(
                 labelSize,
-                "font-bold",
+                "font-bold transition-all duration-500",
                 isActive ? "fill-primary" : "fill-slate-400"
               )}
             >
@@ -212,32 +239,40 @@ export function WindCompass({
           );
         })}
 
-        {/* Staart (wind vandaan) */}
-        <circle cx={fromPt.x} cy={fromPt.y} r={size === "sm" ? 2.5 : 4} fill={qualityColors.arrow} opacity={0.45} />
+        <circle cx={fromPt.x} cy={fromPt.y} r={size === "sm" ? 2.5 : size === "2xl" ? 5 : 4} fill={qualityColors.arrow} opacity={0.45} />
 
-        {/* Pijl: van herkomst naar blaasrichting */}
         <line
           x1={fromPt.x}
           y1={fromPt.y}
           x2={toPt.x}
           y2={toPt.y}
           stroke={qualityColors.arrow}
-          strokeWidth={size === "sm" ? 2.5 : prominent ? 4 : 3.5}
+          strokeWidth={strokeW}
           strokeLinecap="round"
           markerEnd={`url(#wind-arrowhead-${markerId})`}
+          className={animated ? "wind-compass-arrow" : undefined}
+          style={{ transition: animated ? "x1 0.9s cubic-bezier(0.22,1,0.36,1), y1 0.9s cubic-bezier(0.22,1,0.36,1), x2 0.9s cubic-bezier(0.22,1,0.36,1), y2 0.9s cubic-bezier(0.22,1,0.36,1)" : undefined }}
         />
 
-        <circle cx="60" cy="60" r={size === "sm" ? 3 : 5} fill={qualityColors.arrow} />
+        <circle
+          cx="60"
+          cy="60"
+          r={size === "sm" ? 3 : size === "2xl" ? 6 : 5}
+          fill={qualityColors.arrow}
+          className={animated ? "wind-compass-center" : undefined}
+        />
       </svg>
 
-      {(size === "lg" || size === "xl" || prominent) && (
-        <div className="text-center mt-2 min-w-0 w-full px-1">
-          <p className="text-sm sm:text-base font-bold text-slate-800">
+      {(size === "lg" || size === "xl" || size === "2xl" || prominent) && (
+        <div className="text-center mt-3 min-w-0 w-full px-1">
+          <p className={cn("font-bold text-slate-800", size === "2xl" ? "text-base sm:text-lg" : "text-sm sm:text-base")}>
             {UI.windFrom} {fromLabel}
             <span className="text-slate-400 font-normal mx-1">→</span>
             {toLabel}
           </p>
-          <p className="text-xs text-slate-500 tabular-nums">{Math.round(fromDeg)}° · {UI.windTo} {Math.round(toDeg)}°</p>
+          <p className="text-xs text-slate-500 tabular-nums mt-0.5">
+            {Math.round(fromDeg)}° · {UI.windTo} {Math.round(toDeg)}°
+          </p>
         </div>
       )}
 

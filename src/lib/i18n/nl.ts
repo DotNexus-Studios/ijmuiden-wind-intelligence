@@ -140,6 +140,9 @@ export const UI = {
   wingSetup: "Optimale setup",
   windsurf: "Windsurf",
   windSecondary: "Wind (secundair)",
+  measurementPoints: "Meetpunten",
+  fusedAverage: "Gem. gewogen",
+  spotLabel: "IJmuiderstrand",
   backToDashboard: "Terug naar dashboard",
 } as const;
 
