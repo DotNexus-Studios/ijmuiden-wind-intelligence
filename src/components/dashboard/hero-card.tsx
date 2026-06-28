@@ -15,6 +15,7 @@ import {
 import { msToKnots } from "@/lib/units/wind";
 import { UI, formatObservationClock } from "@/lib/i18n/nl";
 import type { DashboardData } from "@/lib/dashboard";
+import { getDisplayWaveHeightCm, getDisplayWavePeriodS } from "@/lib/marine/wave-display";
 import { buildSportSnapshots, toDisplayStatus, type SportId } from "@/lib/watersport/sports";
 import {
   buildHeroMetrics,
@@ -50,11 +51,8 @@ export function CurrentConditionsCard({
   const obsTime = data.observationTimestamp;
   const awaitingLive = loadingLive || data.preview;
   const heroMetrics = buildHeroMetrics(data, sport, snapshot);
-  const waveHeightCm =
-    snapshot.waveHeightCm ??
-    data.water.waveHeightCm ??
-    Math.round(data.surf.now.effectiveHeightM * 100);
-  const wavePeriodS = snapshot.wavePeriodS ?? data.water.wavePeriodS ?? data.surf.now.wavePeriodS;
+  const waveHeightCm = getDisplayWaveHeightCm(data);
+  const wavePeriodS = getDisplayWavePeriodS(data);
 
   return (
     <section className="dashboard-card p-5 sm:p-6 h-full min-w-0 max-w-full">

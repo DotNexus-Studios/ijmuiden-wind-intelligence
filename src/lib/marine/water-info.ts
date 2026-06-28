@@ -1,5 +1,6 @@
 import { analyzeTideFromSeaLevel, type TideInfo } from "@/lib/marine/tide";
 import type { MarinePoint } from "@/lib/marine/open-meteo-marine";
+import { surfEffectiveHeightCm } from "@/lib/watersport/surf";
 
 export interface WaterInfo {
   tide: TideInfo;
@@ -30,7 +31,9 @@ export function buildWaterInfo(points: MarinePoint[]): WaterInfo {
     tide,
     waterTempC: now?.seaSurfaceTempC ?? null,
     wavePeriodS: now?.wavePeriodS ?? null,
-    waveHeightCm: now ? Math.round(now.waveHeightM * 100) : null,
+    waveHeightCm: now
+      ? surfEffectiveHeightCm(now.waveHeightM, now.swellHeightM ?? 0)
+      : null,
     source: "Open-Meteo Marine · IJmuiden aan zee",
   };
 }

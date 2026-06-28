@@ -1,4 +1,5 @@
 import type { DashboardData } from "@/lib/dashboard";
+import { getDisplayWaveHeightCm, getDisplayWavePeriodS } from "@/lib/marine/wave-display";
 import { UI } from "@/lib/i18n/nl";
 import { msToKnots } from "@/lib/units/wind";
 import type { SportId, SportSnapshot } from "@/lib/watersport/sports";
@@ -27,16 +28,12 @@ export function getSportDataFocus(sport: SportId): SportDataFocus {
   }
 }
 
-function waveHeightCm(data: DashboardData, snapshot: SportSnapshot): number {
-  return (
-    snapshot.waveHeightCm ??
-    data.water.waveHeightCm ??
-    Math.round(data.surf.now.effectiveHeightM * 100)
-  );
+function waveHeightCm(data: DashboardData): number {
+  return getDisplayWaveHeightCm(data);
 }
 
-function wavePeriodS(data: DashboardData, snapshot: SportSnapshot): number | null {
-  return snapshot.wavePeriodS ?? data.water.wavePeriodS ?? data.surf.now.wavePeriodS ?? null;
+function wavePeriodS(data: DashboardData): number {
+  return getDisplayWavePeriodS(data);
 }
 
 function shortTideLabel(data: DashboardData): string {
@@ -61,9 +58,9 @@ export function buildHeroMetrics(
   snapshot: SportSnapshot
 ): DisplayMetric[] {
   const { live, water } = data;
-  const heightCm = waveHeightCm(data, snapshot);
-  const period = wavePeriodS(data, snapshot);
-  const periodLabel = period != null ? `${period.toFixed(1)} s` : UI.unknown;
+  const heightCm = waveHeightCm(data);
+  const period = wavePeriodS(data);
+  const periodLabel = `${period.toFixed(1)} s`;
   const temp =
     water.waterTempC != null ? `${water.waterTempC.toFixed(1)} °C` : UI.unknown;
 
@@ -97,14 +94,14 @@ export function buildStickyColumns(
   confidence: number
 ): StickyColumn[] {
   const { live } = data;
-  const heightCm = waveHeightCm(data, snapshot);
-  const period = wavePeriodS(data, snapshot);
+  const heightCm = waveHeightCm(data);
+  const period = wavePeriodS(data);
   const tide = shortTideLabel(data);
 
   if (sport === "surf") {
     return [
       { label: UI.waveHeight, value: `${heightCm} cm` },
-      { label: UI.waveInterval, value: period != null ? `${period.toFixed(1)} s` : UI.unknown },
+      { label: UI.waveInterval, value: `${period.toFixed(1)} s` },
       { label: UI.tide, value: tide },
     ];
   }

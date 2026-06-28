@@ -1,5 +1,6 @@
 import { STATUS_LABELS, UI } from "@/lib/i18n/nl";
 import type { DashboardData } from "@/lib/dashboard";
+import { getDisplayWaveHeightCm, getDisplayWavePeriodS } from "@/lib/marine/wave-display";
 import type { FusedForecastPoint } from "@/lib/weather-models/types";
 import { msToKnots } from "@/lib/units/wind";
 import type { RiderWeight } from "@/lib/watersport/kite-size";
@@ -154,8 +155,8 @@ export function buildSportSnapshots(
       equipment: surf.headline,
       windKt,
       gustKt,
-      waveHeightCm: Math.round(surf.now.effectiveHeightM * 100),
-      wavePeriodS: surf.now.wavePeriodS,
+      waveHeightCm: getDisplayWaveHeightCm(data),
+      wavePeriodS: getDisplayWavePeriodS(data),
     },
   };
 }

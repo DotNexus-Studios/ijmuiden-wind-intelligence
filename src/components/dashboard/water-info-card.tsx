@@ -3,10 +3,12 @@
 import { SectionHeader } from "@/components/dashboard/section-header";
 import { UI, formatObservationClock } from "@/lib/i18n/nl";
 import type { DashboardData } from "@/lib/dashboard";
+import { getDisplayWaveHeightCm } from "@/lib/marine/wave-display";
 import { Droplets, Thermometer, Timer, Waves } from "lucide-react";
 
 export function WaterInfoCard({ data }: { data: DashboardData }) {
   const { water } = data;
+  const waveHeightCm = getDisplayWaveHeightCm(data);
 
   return (
     <section className="dashboard-card p-5 sm:p-6 min-w-0 max-w-full">
@@ -35,7 +37,7 @@ export function WaterInfoCard({ data }: { data: DashboardData }) {
         <Metric
           icon={Waves}
           label={UI.waveHeight}
-          value={water.waveHeightCm != null ? `${water.waveHeightCm} cm` : UI.unknown}
+          value={`${waveHeightCm} cm`}
         />
       </div>
     </section>

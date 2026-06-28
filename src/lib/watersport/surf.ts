@@ -15,6 +15,7 @@ export interface SurfAssessmentInput {
 export interface SurfTimelinePoint {
   time: string;
   waveHeightM: number;
+  effectiveHeightM: number;
   wavePeriodS: number;
   swellHeightM: number;
   status: SurfStatus;
@@ -48,9 +49,17 @@ export interface SurfAssessment {
   timeline: SurfTimelinePoint[];
 }
 
-function effectiveWaveHeight(input: SurfAssessmentInput): number {
+function effectiveWaveHeight(input: SurfAssessmentInput | { waveHeightM: number; swellHeightM?: number }): number {
   const swell = input.swellHeightM ?? 0;
   return Math.max(input.waveHeightM, swell * 0.85);
+}
+
+export function surfEffectiveHeightM(waveHeightM: number, swellHeightM = 0): number {
+  return effectiveWaveHeight({ waveHeightM, swellHeightM });
+}
+
+export function surfEffectiveHeightCm(waveHeightM: number, swellHeightM = 0): number {
+  return Math.round(surfEffectiveHeightM(waveHeightM, swellHeightM) * 100);
 }
 
 export function scoreSurfPoint(input: SurfAssessmentInput): {
@@ -182,7 +191,7 @@ function findBestWindow(timeline: SurfTimelinePoint[]): SurfWindow | null {
   return {
     start: block[0].time,
     end: block[block.length - 1].time,
-    peakHeightM: Math.max(...block.map((p) => p.waveHeightM)),
+    peakHeightM: Math.max(...block.map((p) => p.effectiveHeightM)),
     peakPeriodS: block.reduce((a, b) => (b.wavePeriodS > a.wavePeriodS ? b : a)).wavePeriodS,
     avgScore: Math.round(block.reduce((s, p) => s + p.score, 0) / block.length),
   };
@@ -222,6 +231,10 @@ export function buildSurfAssessment(
     return {
       time: p.time,
       waveHeightM: p.waveHeightM,
+      effectiveHeightM: effectiveWaveHeight({
+        waveHeightM: p.waveHeightM,
+        swellHeightM: p.swellHeightM,
+      }),
       wavePeriodS: p.wavePeriodS,
       swellHeightM: p.swellHeightM,
       status,

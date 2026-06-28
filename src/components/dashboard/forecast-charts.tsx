@@ -20,6 +20,7 @@ import { DirectionArrow, StatusBadge } from "@/components/dashboard/wind-display
 import { msToKnots } from "@/lib/units/wind";
 import { UI, formatObservationClock, formatTimelineLabel } from "@/lib/i18n/nl";
 import type { DashboardData } from "@/lib/dashboard";
+import { getTimelineEffectiveHeightM, getTimelineWaveHeightCm } from "@/lib/marine/wave-display";
 import {
   assessForecastPointForSport,
   getSportWindGoRange,
@@ -44,12 +45,15 @@ interface ChartSportProps {
 function findSurfPointAtTime(
   data: DashboardData,
   time: string
-): { waveHeightM: number; wavePeriodS: number } | null {
+): { effectiveHeightM: number; wavePeriodS: number } | null {
   const match = data.surf.timeline.find(
     (t) => Math.abs(new Date(t.time).getTime() - new Date(time).getTime()) < 3_600_000
   );
   if (!match) return null;
-  return { waveHeightM: match.waveHeightM, wavePeriodS: match.wavePeriodS };
+  return {
+    effectiveHeightM: getTimelineEffectiveHeightM(match),
+    wavePeriodS: match.wavePeriodS,
+  };
 }
 
 export function ForecastOverviewCard({ data, sport }: ChartSportProps) {
@@ -99,7 +103,7 @@ export function ForecastOverviewCard({ data, sport }: ChartSportProps) {
             const surfPoint = sport !== "kite" && sport !== "wingfoil"
               ? findSurfPointAtTime(data, point.time)
               : null;
-            const waveCm = surfPoint ? Math.round(surfPoint.waveHeightM * 100) : 0;
+            const waveCm = surfPoint ? Math.round(surfPoint.effectiveHeightM * 100) : 0;
             const wavePeriod = surfPoint?.wavePeriodS;
 
             return (
@@ -173,7 +177,7 @@ export function WindGustsChart({ data, sport }: ChartSportProps) {
       time: new Date(p.time).toLocaleTimeString("nl-NL", { hour: "2-digit", minute: "2-digit" }),
       wind,
       gust,
-      wave: surfPoint ? Math.round(surfPoint.waveHeightM * 100) : null,
+      wave: surfPoint ? Math.round(surfPoint.effectiveHeightM * 100) : null,
       isNow: i === 0,
       isGo: isGoStatus(status),
       isWait: status === "WAIT" || status === "FLAT",
@@ -274,7 +278,7 @@ export function ForecastFusedChart({ data, sport }: ChartSportProps) {
 
   const surfChartData = data.surf.timeline.slice(0, hours).map((p) => ({
     time: new Date(p.time).toLocaleDateString("nl-NL", { weekday: "short", hour: "2-digit" }),
-    wave: Math.round(p.waveHeightM * 100),
+    wave: getTimelineWaveHeightCm(p),
     isGo: p.status === "GO",
     isWait: p.status === "WAIT" || p.status === "FLAT",
   }));
@@ -300,7 +304,7 @@ export function ForecastFusedChart({ data, sport }: ChartSportProps) {
             time: new Date(p.time).toLocaleDateString("nl-NL", { weekday: "short", hour: "2-digit" }),
             wind: Math.round(msToKnots(p.speedMs)),
             gust: Math.round(msToKnots(p.gustMs)),
-            wave: surfPoint ? Math.round(surfPoint.waveHeightM * 100) : null,
+            wave: surfPoint ? Math.round(surfPoint.effectiveHeightM * 100) : null,
             isGo: isGoStatus(status),
             isWait: status === "WAIT" || status === "FLAT",
           };

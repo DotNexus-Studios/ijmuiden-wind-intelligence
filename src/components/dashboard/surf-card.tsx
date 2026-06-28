@@ -15,6 +15,7 @@ import { SectionHeader } from "@/components/dashboard/section-header";
 import { Badge } from "@/components/ui/badge";
 import { UI, formatObservationClock } from "@/lib/i18n/nl";
 import type { DashboardData } from "@/lib/dashboard";
+import { getDisplayWaveHeightCm, getTimelineWaveHeightCm } from "@/lib/marine/wave-display";
 import type { SurfStatus } from "@/lib/watersport/surf";
 import { cn } from "@/lib/utils";
 
@@ -35,14 +36,14 @@ export function SurfConditionsCard({ data }: { data: DashboardData }) {
           weekday: "short",
           hour: "2-digit",
         }),
-        heightCm: Math.round(p.waveHeightM * 100),
+        heightCm: getTimelineWaveHeightCm(p),
         period: Math.round(p.wavePeriodS * 10) / 10,
         status: p.status,
       })),
     [surf.timeline]
   );
 
-  const heightCm = Math.round(surf.now.effectiveHeightM * 100);
+  const heightCm = getDisplayWaveHeightCm(data);
   const swellCm = Math.round(surf.now.swellHeightM * 100);
 
   return (
